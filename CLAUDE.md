@@ -4757,6 +4757,12 @@ good.
   without it. `docs/release-checklist.md` is the order of work: the one-time
   setup (Developer ID, notary credentials, hosting and DNS, the App Store
   Connect record) and every release's steps.
+- `Sources/PenProbe/` — step 0 of docs/pencil-pressure-plan.md, not shipped: posts three test
+  strokes of synthesized tablet events where the pointer is (only with `--post-to-this-mac`), to
+  see whether drawing apps take pressure and tilt; `--canvas` is a window that draws and prints
+  what it receives. It builds its events with the host's `PenEvents` (`Sources/SillHost/`: the
+  tablet fields of a pen's point and the proximity event, building only), which `PenSelfTest`
+  (`SillHost --pen-selftest`) reads back through AppKit without posting.
 - `Sources/VirtualDisplayProbe/` — CLI experiment for milestone 3; run it from
   Terminal (needs Screen Recording + Accessibility): `.build/release/VirtualDisplayProbe "Activity Monitor" --seconds 20`.
 - `iOSClient/` — `Sill.xcodeproj` and its sources: `StreamClient` (Bonjour: a
@@ -5023,6 +5029,8 @@ swift run -c release SillHost --print-reachability  # the addresses a device wou
 swift run -c release SillHost --pairing     # the home door speaks TLS, pairing required, a throwaway identity; the code and link print here (with --remote, one pairing for both doors)
 swift run -c release SillHost --print-cable # what the cable rule reads on each interface, and whether the console is unlocked; read-only, then exit
 swift run -c release SillHost --menu-selftest=TextEdit   # the menus a device would be sent for that app (a pid, or the start of its name), read once; read-only
+swift run -c release SillHost --pen-selftest   # what AppKit reads from the tablet events Sill would post for a Pencil (docs/pencil-pressure-plan.md, H0); posts nothing
+swift run -c release PenProbe                  # P0's tool: says what it would do; `--canvas` a window that draws what it receives; `--post-to-this-mac` POSTS three test strokes where the pointer is (the owner's to run)
 python3 Scripts/sillclient.py PORT 5 none --pair-ask --then-code=$T/code --identity=$T/a   # a device's ask at a TLS home door, then the code the host printed (saved in $T/code)
 python3 Scripts/sillclient.py PORT 8 desktop --set=bitrate=25000000@3 --expect=bitrate=25000000   # a device's settings change
 SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_POINTER_PATH=$T/path .build/release/SillHost --synthetic   # a scripted pointer on the test pattern, on 127.0.0.1 alone, never the hardware encoder

@@ -1,0 +1,392 @@
+# Apple Pencil pressure and tilt — the plan
+
+## Status (2026-10-13)
+
+Step 0 is half done, on the branch `pencil-pressure` (from main at 985a733), uncommitted. Its
+headless half, H0, is built and passes (§13). Its other half, P0, posts real input to the Mac and
+is the owner's to run: §13 has the commands. Nothing after step 0 is built. Line numbers are
+985a733's.
+
+**The request:** make Apple Pencil pressure and tilt reach Mac apps, where today the Pencil is only
+a mouse.
+
+**Reading of it.** A Pencil on the stream should draw in a Mac drawing app as a tablet pen does:
+harder presses give a heavier line, and a tilted Pencil shades. That needs three things Sill lacks:
+the device must read pressure and tilt from each touch, the wire must carry them, and the Mac must
+post them as tablet events instead of plain mouse events. Everything else about the Pencil stays as
+it is: it still clicks, drags and hovers as the mouse.
+
+**The main unknown** is on the Mac, and step 0 settles it before anything else is built: whether
+the drawing apps people use take pressure from *synthesized* tablet events (`CGEvent`s with tablet
+fields). AppKit apps that read `NSEvent.pressure` should. Apps that talk to a tablet driver
+directly may not. If the apps that matter do not, this plan stops after step 0 (§11 has the
+fallback, which is a different and larger project).
+
+## 1. What exists today
+
+| Where | What it does | What it lacks |
+|---|---|---|
+| `InputOverlay.swift:281-338` | A `.pencil` touch is the left button: down, moves, up, each a kind 8 `.pointer` | Never reads `force`, `altitudeAngle`, `azimuthAngle`; never reads `coalescedTouches` |
+| `InputOverlay.swift:269` | Pencil hover sends cursor-only moves, told from a trackpad by `zOffset` or `altitudeAngle` | Sends nothing when hover ends; never verified on a device |
+| `Input.swift:14` | `InputEvent.pointer(action, x:, y:)` | No field for pressure or tilt |
+| `StreamClient.swift:3001` | `sendInput` keeps only the latest move per 8 ms | A stroke loses samples (a Pencil reports 240 a second) |
+| `InputInjector.swift:168` | Posts `leftMouseDown` / `Dragged` / `Up` | No `mouseEventPressure`, no tablet subtype, no proximity events |
+| `TrackpadView.swift` | The portrait trackpad takes a Pencil as a finger (relative) | Unchanged by this plan |
+| — | — | No palm rejection: a hand resting on the glass during a Pencil stroke taps and scrolls the Mac |
+
+Kind 8 is special in six places, and Pencil input in a new kind must be treated the same in each:
+
+1. `StreamServer.swift:1379`: keeps the ticks flowing, counts `inputsRead` (kind 26's `seen`) and
+   hands the device the pointer (`PointerWatch.inputArrived`).
+2. `SessionLink.swift:99`: `isInput` counts messages whose first byte is 8, for the same `seen`.
+3. `StreamCoordinator.swift:894`: the source rectangle, `DroppedInput`, `gestureChords.input`,
+   `raiseIfInteracting`, `deliver` and its held queue (`Held`, line 1477), `desktopInputMayActivate`.
+4. `StreamClient.sendInput`: `lastInputAt` (the tour's rule), the `inputPaused` tripwire,
+   `pointerNoteSent` on the network queue, and `flushPendingMove` before anything but a move.
+5. `InputInjector`: the shared `left` button state, multi-click counting, `watch.sillMoved`,
+   `lastPointerLocation`, the dry run and its test log, `releaseAll`.
+6. `KeyStrokes.swift:300`: `DroppedInput.stillGoes`, the up of a button the Mac has down.
+
+## 2. Decisions
+
+Each is a default the implementer takes unless the owner says otherwise (§12 lists the ones that
+are the owner's call).
+
+1. **A new kind 29, `pen`, device → host.** Not an optional field on `.pointer`: that would keep
+   one message per sample (240 small TCP messages a second), give hover's end no message of its
+   own, and change every pattern match on `.pointer` in the app and its checks. A new kind batches
+   a callback's samples in one message and leaves `InputEvent` alone.
+2. **The host advertises it:** `WindowList.pencil` 1, as `gestures` 1 does (`Switcher.swift:55`).
+   A device sends kind 29 only to a host that says so; every other host gets kind 8 as today.
+3. **Raw values on the wire, the Mac's mapping on the Mac.** The device sends pressure as a
+   fraction and the Pencil's angles in radians. The host turns them into what macOS wants. A later
+   change to the mapping then needs no new device build.
+4. **Every contact sample goes out.** Hover moves keep the latest-only rule; a stroke's samples
+   are never dropped, and go as one message per `touchesMoved` callback.
+5. **Estimated pressure is sent as it is.** The Pencil's first samples carry an estimate that
+   UIKit corrects tens of milliseconds later. An event already posted cannot be amended, and
+   latency beats quality, so corrections are ignored.
+6. **No predicted touches.** They would have to be unposted.
+7. **Palm rejection is part of this.** While a Pencil is down or hovering, and for 0.5 s after,
+   finger touches on the stream send nothing. Without it a resting palm ends the stroke: its tap's
+   button-up releases the button the Pencil holds.
+8. **A device switch, on by default:** Settings › This iPad › "Pencil Pressure"
+   (`Sill.pencilPressure`, never sent to the Mac). Off, the Pencil is the mouse as today. It is the
+   way out for a Mac app that mishandles tablet events.
+9. **The picture only.** A Pencil on the portrait trackpad stays a finger.
+
+## 3. Wire
+
+`Sources/StreamProtocol/Pen.swift`, new. `StreamMessageKind.pen = 29`. JSON, strings not enums,
+every later field optional (HostSettings.swift's rules).
+
+```swift
+public struct PenInput: Codable, Equatable, Sendable {
+    public var phase: String          // "hover", "down", "move", "up", "cancel", "leave"
+    public var samples: [PenSample]?  // oldest first; none for "leave"
+    public static let generation = 1  // WindowList.pencil from a host that takes this
+}
+
+public struct PenSample: Codable, Equatable, Sendable {
+    public var x: Double              // fraction of the video frame, 5 decimal places
+    public var y: Double
+    public var p: Double?             // pressure 0…1 (force ÷ maximumPossibleForce); nil while hovering
+    public var alt: Double?           // altitude, radians: π/2 upright, 0 flat on the glass
+    public var az: Double?            // azimuth in the frame, radians: 0 points along +x
+    public var t: Double?             // ms before the message's last sample; 0 or nil for the last
+}
+```
+
+Rules:
+
+- "down" and "up" carry exactly one sample. "move" carries one callback's coalesced samples, at most
+  32. "hover" carries one. "cancel" is an up where the Pencil last was. "leave" says the Pencil is
+  out of range.
+- A host skips a phase it does not know, a message with more than 32 samples, and a sample whose
+  `x`, `y`, `p`, `alt` or `az` is not finite. `p` is clamped to 0…1.
+- `WindowList.pencil: Int?`, nil from every host before. The host sets it to 1 whenever it would
+  post input (every host: a synthetic one runs it dry).
+- Kind 26's `seen` counts kinds 8 and 29. Both ends change together, and a 29 only ever goes to a
+  host that counts it, so the two counts still agree in every mix of builds.
+
+About 60 bytes a sample: 15 KB/s during a stroke.
+
+| Device | Host | What happens |
+|---|---|---|
+| This | This | Kind 29 for the Pencil; pressure and tilt reach the Mac |
+| This | Older (no `pencil`) | Kind 8 as today. The Settings row says "Update Sill on ‹Mac›" |
+| Older | This | Kind 8 as today |
+| This, switch off | Any | Kind 8 as today |
+
+## 4. Host
+
+### 4.1 `PenTablet` (pure, new: `Sources/SillHost/PenTablet.swift`)
+
+Turns pen messages into the list of events to post. Pure, so `Tests/checks/pen` covers it.
+
+- **Proximity.** A tablet pen is "in proximity" between an enter and a leave event, and many apps
+  read pressure only from a pen that entered. The Mac enters lazily, before the first pen event,
+  and leaves at the first of:
+  - a "leave" from the device;
+  - 1 s with no pen message and the tip up (an iPad whose Pencil cannot hover never sends hover,
+    so the device's "leave" may be the only other signal);
+  - any kind 8 pointer or scroll input from any device (a finger or trackpad click after it must
+    not read as a pen);
+  - that device leaving, and the host's end (`releaseAll`).
+- **The tip.** "down" presses the left button, "up" and "cancel" release it. A down while the
+  button is already down, and an up while it is not, post nothing. A device that leaves with the
+  tip down gets its up.
+- **The mapping**, from one sample:
+  - pressure: `p`, but at least 0.01 while the tip is down (some apps read 0 as no contact); 0 on
+    the up and while hovering;
+  - tilt: with θ = π/2 − `alt`, tilt x = sin θ · cos `az`, tilt y = −sin θ · sin `az` (AppKit's y
+    is positive away from the user; the frame's y grows downward). Step 0 checks the sign and the
+    scale against AppKit's own reading before this is fixed.
+
+### 4.2 `InputInjector`
+
+- `pen(_ input: PenInput, in rect: CGRect, from device:)` runs `PenTablet` and posts what it
+  returns through the existing `pointer(_:at:)`, which gains an optional set of tablet fields. The
+  button state, multi-click counting, `watch.sillMoved`, `lastPointerLocation` and the dry run are
+  then shared with kind 8, not copied.
+- A pen point event is the mouse event Sill posts today (`leftMouseDown`, `leftMouseDragged`,
+  `leftMouseUp`, `mouseMoved`) plus `.mouseEventSubtype` tablet point, `.tabletEventPointPressure`,
+  `.tabletEventTiltX`, `.tabletEventTiltY`, `.tabletEventPointButtons` and `.tabletEventDeviceID`
+  (`PenEvents.stamp`, built in step 0). The mouse event's own `.mouseEventPressure` is set to 0:
+  AppKit reads that one when it is not 0, and it holds only 8 bits (§13).
+- A proximity event is a `CGEvent` of type `.tabletProximity` with the same device ID, pointer
+  type pen, enter or leave, and a capability mask naming pressure and tilt (IOLLEvent.h's
+  `NX_TABLET_CAPABILITY_*` values).
+- Stats: `in.pen` per sample posted, `in.penProximity` per enter or leave. A dry run counts
+  `in.dry` and, with `SILL_TEST_INPUT_LOG=1`, prints each event with its fields ("Test input: left
+  mouse dragged (none) at 756,474 pen 0.42 tilt 0.10,-0.30", "Test input: pen enters").
+- A message's samples are posted back to back. Step 0 says whether apps need them spaced (§12 Q4).
+
+### 4.3 `StreamServer` and `StreamCoordinator`
+
+- `StreamServer.swift:1379`: kind 29 does what kind 8 does there, with `movesPointer` true.
+- The coordinator's `.input` body becomes a helper that both kinds call. A pen message stands in
+  as the pointer event it amounts to (down as `.leftDown`, up and cancel as `.leftUp`, the rest as
+  `.move`) for `DroppedInput`, `gestureChords.input`, `raiseIfInteracting` and
+  `desktopInputMayActivate`. `Held` gains `.pen(PenInput, CGRect, KeyStrokes.Device)`, so a stroke
+  that starts during an activation is replayed in order.
+- With nowhere to land, only an up or cancel whose down was posted still goes, and a "leave".
+
+Nothing new prints unless a device sends kind 29, so the CLI's output stays byte for byte.
+
+## 5. Device
+
+### 5.1 `PenStrokes` (pure, new: `iOSClient/PenStrokes.swift`)
+
+Decides what goes out, from the touch and hover callbacks. Pure, checked with the host's
+`PenTablet` in `Tests/checks/pen`.
+
+- **The mode is fixed per stroke** at the Pencil's down: pen (kind 29) when the switch is on and
+  the Mac's `pencil` is 1 or more, else mouse (kind 8, today's path). A stroke never changes mode,
+  so its up always matches its down.
+- **Samples.** Pressure is `force ÷ maximumPossibleForce`, 0 when the maximum is 0. Angles as
+  UIKit gives them. Positions from `preciseLocation(in:)`, normalized as today.
+- **"leave".** Sent when hover has ended and, 0.1 s later, the Pencil is neither touching nor
+  hovering. Hover ends as the tip lands, and that must not read as leaving.
+- **Palm rejection.** `fingersSilent` is true while a Pencil is down or hovering and for 0.5 s
+  after. A finger stroke that began while it was true stays silent to its end.
+
+### 5.2 `InputOverlayView`
+
+- The four touch callbacks, for a `.pencil` touch in pen mode: build samples from
+  `event.coalescedTouches(for:)` and hand them to a new `sendPen` closure. `.indirectPointer` (the
+  iPad's own trackpad or mouse) stays kind 8.
+- `handleHover`, for a Pencil in pen mode: "hover" with its angles, and the end of hover into
+  `PenStrokes`.
+- Each finger handler's guard becomes `guard !strokes.silent, !pen.fingersSilent`. A scroll the
+  palm had begun is closed as the Pencil arrives, with no coast, as a three-finger stroke closes
+  one today.
+- `setOwnPointer(at, .pencil)` is unchanged.
+
+### 5.3 `StreamClient` and `SessionLink`
+
+- `sendPen(_:)` mirrors `sendInput`: `lastInputAt`, the tour's tripwire, then on the network queue
+  `pointerNoteSent` with the last sample's position, `flushPendingMove`, and the message. "hover"
+  messages share the 8 ms latest-only rule; everything else goes at once.
+- `hostPencil: Int?` from each window list, cleared at tear-down, beside `hostGestures`.
+- `SessionLink.isInput`: first byte 8 or 29.
+
+### 5.4 Settings
+
+`HostSettingsPanel`, the This iPad group, on an iPad only (an iPhone has no Pencil): the switch
+"Pencil Pressure" and a footnote: "Apple Pencil pressure and tilt reach Mac apps that support
+drawing tablets.", or "Update Sill on ‹Mac› to use this." for a Mac without `pencil`, or "Apple
+Pencil works as a mouse while this is off."
+
+## 6. What does not change
+
+- `InputEvent` and kind 8, the Pencil as the mouse on an older Mac, and the Pencil's hidden arrow
+  (the pointer plan's Q2; see §12 Q1).
+- The stream. Ink still trails the tip by the glass-to-glass latency, roughly 40–60 ms as measured
+  in milestone 2. This plan does not shorten it.
+- Sill.app's screen: no setting, no menu item.
+
+## 7. Not in this plan
+
+Barrel roll (Apple Pencil Pro), squeeze, double-tap, the eraser, hover distance, and a local ink
+overlay to hide latency. The wire leaves room: each is an optional field or a new phase. Squeeze
+and double-tap are a small separate change (`UIPencilInteraction`).
+
+## 8. Steps, one commit each
+
+0. **The probes (§9 H0, P0).** Stop here if P0 fails for the apps that matter.
+1. **The wire:** `Pen.swift`, kind 29, `WindowList.pencil`; the checks that pin kind numbers (§9
+   H1); `sillclient.py --pen` and `--raw29`.
+2. **The host:** `PenTablet`, the injector, the server's count, the coordinator's helper and
+   `Held.pen`; `Tests/checks/pen`'s host half.
+3. **The device:** `PenStrokes`, the overlay, `sendPen`, `SessionLink.isInput`, palm rejection;
+   the check's device half; the `fence` check's count.
+4. **The switch** and its footnote.
+5. **The documents:** CLAUDE.md (the Current step entry, Layout, Build and run, and the
+   compatibility floor: kinds 0–29, `pencil`, and `seen` counting 8 and 29), `docs/DEVELOPMENT.md`,
+   `Tests/checks/README.md`, CI's mutants matrix, `site/privacy.html` (lines 73, 108 and 115 list
+   what the device sends, the device's switches and what the log holds).
+6. **A review**, then the device tests (§9 P1–P10).
+
+The public claims (README, the site's intro, the App Store description's Pencil bullet) change
+only after P1–P4 pass on a device, and the site is republished with them.
+
+New Swift files in `iOSClient/` need their four pbxproj entries by hand, in a free ID block.
+
+## 9. Gates
+
+### Headless
+
+| | Gate |
+|---|---|
+| H0 | **AppKit's reading of the events, with nothing posted.** `SillHost --pen-selftest`: build the proximity and point events exactly as the injector would, turn each into an `NSEvent(cgEvent:)`, and print what AppKit reads: `subtype`, `pressure`, `tilt`, `deviceID`, `isEnteringProximity`, `pointingDeviceType`, `capabilityMask`. Pass: pressure 0.25, 0.5 and 1 read back as sent; a Pencil leaning right, left, toward and away reads as tilt +x, −x, −y and +y; the enter and leave pair with the point events by device ID. This fixes §4.1's sign and scale. No event is posted and no permission is needed |
+| H1 | **The kind numbers.** `compatibility`, `protocol`, `menus` and `pointer-control` each say 29 is unknown (`protocol/main.swift:369`, `menus/main.swift:25`, `pointer-control/main.swift:376`, `compatibility/main.swift:166`): 29 is now `pen` and 30 unknown. Three mutants renumber a kind onto 29 (`compatibility` "kind 28 as 29", `menus` "the fetch at 29", `pointer-control` "kind 26 numbered 29") and no longer compile: move each to a free number |
+| H2 | **`Tests/checks/pen`**, with mutants, in `run-all.sh` and CI's matrix. The wire: each phase's JSON, an older decoder skipping unknown keys, an unknown phase, 33 samples, a non-finite value. The mapping at its edges: force 0, the maximum, a maximum of 0; the Pencil upright, flat, and at each quarter of azimuth. The host's rules: enter before the first point, leave at each of its four causes, a down while down, an up while up, a device leaving mid-stroke. The device's: the mode fixed per stroke, "leave" not sent as the tip lands, palm silence and its 0.5 s. Then random sessions of a Pencil, a finger and a second device against the invariants: every point event lies between an enter and a leave, the button is never left down, every posted down gets one up |
+| H3 | **`fence`** counts kind 29 as input in every mode, and **`key-strokes`**' `DroppedInput` cases gain a pen up with nowhere to land |
+| H4 | **The CLI's stdout** against main's, masked and sorted, idle 35 s and with a Desktop client: identical |
+| H5 | **A dry run end to end.** `SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_INPUT_LOG=1 SillHost --synthetic`, and `sillclient.py --pen` sending hover, down, a ramp of moves, up and leave: the log lists "pen enters", the moves with their pressure and tilt, one down and one up, "pen leaves"; then a `--tap` from a second client mid-hover: "pen leaves" before its click. `--pen` and `--raw29` go only to a `--synthetic` host on this Mac, as `--input` does |
+| H6 | **Builds:** `swift build -c release`, iOS Debug and Release for the simulator and Debug for a device, only the known warnings; `Tests/checks/run-all.sh`, all |
+
+### Simulator
+
+The simulator has no Pencil. `-SillInputScript` gains `pen down X,Y,P`, `pen move X,Y,P[,ALT,AZ]`,
+`pen up` and `pen leave`, which run `sendPen` (only against a `--synthetic` host on loopback, as
+its other steps).
+
+| | Gate |
+|---|---|
+| S1 | The script's stroke against H5's host: the host logs the same events as from `sillclient.py`; against main's host (no `pencil`): kind 8 only, and the console says why |
+| S2 | Photos of the Settings group at the iPad's sizes and the largest text size, in its three footnote states; no row on a phone |
+| S3 | `Tests/touchrig` if `TouchSynth` can make a `.pencil` touch with a force: a Pencil stroke with a finger landing mid-stroke sends no click and no scroll. If it cannot, this is a device test (P6) |
+
+### On a device (an iPad with an Apple Pencil; the owner's)
+
+| | Gate |
+|---|---|
+| P0 | **Step 0's real probe, before anything else is built.** A scratch tool posts one synthetic stroke with a pressure ramp and a tilt sweep into the frontmost app after a countdown. Run it by hand over each app that matters (Krita, Blender's sculpt and Grease Pencil, Photoshop or Affinity, Pixelmator Pro, Freeform) and note which draw a line that swells. Repeat without the proximity events (`--no-proximity`), to learn whether they are needed, and with the mouse event's pressure set too (`--mouse-pressure`, Q8). It posts to the Mac, so the owner runs it, never an agent session. Built: `PenProbe` (§13) |
+| P1 | Pressure in each app P0 passed: a light and a heavy stroke differ, and a stroke starts thin |
+| P2 | Tilt in an app with a tilt brush: leaning the Pencil each way shades the matching way |
+| P3 | The Pencil is still the mouse everywhere else: click, double-click, drag a window, select text, menus |
+| P4 | A fast scribble has no straight segments where samples were lost, on a 60 Hz iPad and a 120 Hz one |
+| P5 | Hover on an iPad that has it: the app's brush preview follows; lifting out of range and coming back draws again at once |
+| P6 | A palm resting on the glass while drawing: no click, no scroll, the stroke is not cut; half a second after the Pencil lifts, a finger scrolls again |
+| P7 | Mid-stroke: rotate, pick another window, drop Wi-Fi: the Mac's button is never left down (a click afterwards is a click, not a drag) |
+| P8 | A finger tap, then the trackpad, right after a stroke: plain clicks; Sill.log shows `in.penProximity` moving |
+| P9 | Mixed builds: this iPad against Sill for Mac 0.5.1 (the mouse, the "Update Sill" footnote); TestFlight's iPad build against this Sill.app (the mouse) |
+| P10 | The switch off: the mouse; on again: pressure, with no reconnect. Frame age and rtt during a long stroke as before; away through the remote door, a stroke still reads |
+
+## 10. Risks
+
+- **Apps that ignore synthesized tablet events.** Step 0 exists for this.
+- **A pen left in proximity** makes every later mouse click look like a pen's to some apps. Four
+  causes end it (§4.1), and H2's invariant checks each.
+- **Two devices.** The host has one left button for all devices. A second device's click during a
+  stroke releases it, as it does a finger drag today. Not made worse, not fixed.
+- **Burstiness.** Samples arrive in batches and are posted together, so an app that smooths by
+  event time sees them bunched. Q4.
+- **Palm rejection is a behaviour change** for someone who steadies a hand and taps with a finger
+  between strokes: the 0.5 s is the cost. The switch does not turn it off (a mouse-mode Pencil
+  drag is cut by a palm too).
+
+## 11. If step 0 fails
+
+The other way to be a tablet on macOS is a virtual HID digitizer (`IOHIDUserDevice`), which the
+system treats as real hardware. It needs the `com.apple.developer.hid.virtual.device` entitlement,
+which Apple grants on request, and a provisioning profile that carries it; `make-app.sh --release`
+already embeds one for the keychain group (docs/keychain-plan.md). It would work only in Sill.app
+built with that profile, never in the CLI or a development build. That is its own plan.
+
+## 12. Open questions
+
+| | Question | Default taken |
+|---|---|---|
+| Q1 | **The owner's call.** While drawing, a Mac app's brush cursor is the Mac's cursor, which Sill leaves out of the video, and the device's own arrow is hidden for the Pencil (the pointer plan's Q2, decided). So a hovering Pencil previews no brush. Flip `PointerPresence.pencilShowsPointer` to true while the Pencil hovers in pen mode? | Unchanged: no arrow. Recommended: show it while hovering in pen mode, after P5 is tried without it |
+| Q2 | The device switch | Yes, on by default (§2.8) |
+| Q3 | The pressure floor of 0.01 while the tip is down | Yes; P0 says whether any app needs it |
+| Q4 | Space a batch's samples in time (set each event's timestamp from `t`, or post them `t` apart)? | Back to back. Revisit if P4 shows uneven strokes |
+| Q5 | Set the tablet's absolute position fields (`tabletEventPointX`/`Y`)? | Left unset, and not probed: they are in tablet units, and Sill has no tablet whose range an app could scale them by. The capability mask does not claim them |
+| Q8 | The mouse event's own pressure: 0, so AppKit reads the tablet point's 16 bits (§13), or set too, for an app that reads the mouse event's field itself and would see 0? | 0. P0 tries both (`--mouse-pressure`) |
+| Q6 | The palm rule's 0.5 s | 0.5 s |
+| Q7 | A pressure curve (a softness setting) | None: linear. Mac apps have their own |
+
+## 13. Results
+
+### Step 0, the headless half (2026-10-13)
+
+Built: `Sources/SillHost/PenEvents.swift` (the tablet fields of a pen's point and the proximity
+event; building only, nothing posts), `PenSelfTest.swift` (`SillHost --pen-selftest`, H0) and the
+`PenProbe` target (`Sources/PenProbe/main.swift`, P0's tool; not shipped). No existing source
+changed but the CLI's `main.swift` (the flag) and `Package.swift` (the target).
+
+**H0 passes: 37 readings, exit 0** (macOS 27.0.1, 26A434). Each event is built, serialized, read
+back and turned into the `NSEvent` an app would get; nothing is posted.
+
+- Proximity, entering and leaving: AppKit reads `tabletProximity`, a pen (`pointingDeviceType` 1),
+  the device ID and the capability mask 0x581 as written.
+- A point on a down, a drag, an up and a move, at pressures 0, 0.01, 0.25, 0.5 and 1: subtype
+  `tabletPoint`, the pressure within one 16-bit step, the device ID.
+- Tilt reads back one for one, sign and scale: ±1 on each axis, and 0.3, 0.7.
+- A plain drag, as Sill posts today, is no tablet point.
+
+**Found: where the pressure goes matters.** On a tablet point AppKit's `NSEvent.pressure` is the
+mouse event's own pressure when that is not 0, and the tablet point's only when it is 0. The mouse
+event's holds 8 bits (0.25 reads 0.2471, 63 of 255), the tablet point's 16. A down and a drag are
+made with a mouse pressure of 1, so a tablet pressure alone reads 1.0 on them. So `PenEvents.stamp`
+writes the pressure to the tablet point and sets the mouse event's to 0, and H0 pins both halves
+of the rule (three of its readings are the 8-bit case). What an app that reads the mouse event's
+field itself then sees is 0: Q8, and `--mouse-pressure` in the probe.
+
+**Not settled by H0:** what one unit of tilt means in degrees. AppKit documents −1…1; H0 shows
+only that what is written is what is read. P2 settles it with a tilt brush.
+
+**The probe, `PenProbe`.** With no arguments it says what it would do and posts nothing. `--canvas`
+opens a window that draws what it receives (line width from pressure, colour from tilt) and prints
+each stroke's readings. `--canvas --self` hands that window the three strokes inside its own
+process and checks what it read: 5 of 5, exit 0 (the control no tablet point; pressure 0.020…1.000,
+finer than 8 bits; tilt −0.99…1.00; two enters and two leaves). That checks the canvas, not
+delivery: an event posted to a process (`postToPid`) or handed to `NSApp.sendEvent` reached the
+canvas as proximity but not as a mouse event, since the window server is what gives a mouse event
+its window. Delivery through the window server is exactly what P0 tests.
+
+### P0, for the owner
+
+It posts three left-button drags where the pointer is, after a countdown, so it is run by hand.
+The terminal needs Accessibility (it asks the first time). Build once:
+
+    swift build -c release --product PenProbe
+
+1. **The canvas first**, to see delivery itself with no third-party app. In one terminal
+   `.build/release/PenProbe --canvas`; in another `.build/release/PenProbe --post-to-this-mac`,
+   then within 5 s click the canvas window and rest the pointer near its left edge. Pass: line 1
+   thin and grey, line 2 swelling in the middle, line 3 changing colour along its length, and the
+   canvas prints "tablet points", "finer than 8 bits" and a proximity enter and leave.
+2. **Each drawing app** (Krita, Blender's sculpt mode and Grease Pencil, Photoshop or Affinity,
+   Pixelmator Pro, Freeform): a brush whose size follows pressure, the pointer at the left of an
+   empty canvas, then `.build/release/PenProbe --post-to-this-mac`. Note per app whether line 2
+   swells and whether line 3 changes with a tilt brush.
+3. **For an app where line 2 does not swell**, again with `--mouse-pressure`, and with
+   `--no-proximity` for one where it does (to learn whether proximity is needed).
+
+`--only pressure` posts one stroke, `--length 250` a shorter one, `--countdown 10` leaves more
+time; Ctrl-C stops it with the button up.
+
