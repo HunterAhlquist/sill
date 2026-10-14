@@ -3,13 +3,12 @@
 ## Status (2026-10-13)
 
 On the branch `pencil-pressure` (from main at 985a733). Built and passing (§13): step 0's
-headless half (H0), step 1 (the wire), step 2 (the host) and step 3 (the device): an iPad on this
-build sends its Pencil to a Mac on this build as a pen, with pressure and tilt, and palm rejection
-is in. Step 0's other half, P0, is the owner's: its first part passed (the window server
+headless half (H0), step 1 (the wire), step 2 (the host), step 3 (the device) and step 4 (the
+switch's row): an iPad on this build sends its Pencil to a Mac on this build as a pen, with
+pressure and tilt, palm rejection is in, and Settings › This iPad turns it off. Step 0's other half, P0, is the owner's: its first part passed (the window server
 delivers the events whole to an AppKit app), and which drawing apps take them is still open.
-**Nothing has run on a real iPad with a real Pencil yet**: P1 to P10. Not built: step 4 (the
-switch's row in Settings; the switch itself exists, `Sill.pencilPressure`, on by default), step 5
-(the documents) and step 6 (the review). Line numbers are 985a733's.
+P1 to P10 are still open (the owner has drawn in Affinity, which found the line back to the
+start, §13). Not built: step 5 (the documents) and step 6 (the review). Line numbers are 985a733's.
 
 **The request:** make Apple Pencil pressure and tilt reach Mac apps, where today the Pencil is only
 a mouse.
@@ -566,3 +565,20 @@ while a Pencil touch is down is ignored, in both modes, nor does it count as hov
 `pen` check's new cases fail 8 times on the rule as it was and pass now (215 checks), and the `pen` mutants 90 of 90 caught (the rule as
 it was among them); on the owner's iPad again with the same logs, 5 of 5 strokes green, the stale update still
 arriving in each and none sent on. The logging is gone.
+
+### Step 4, the switch (2026-10-13)
+
+`HostSettingsPanel`'s This iPad group, on an iPad only: a "Pencil Pressure" switch
+(`@AppStorage(StreamClient.pencilKey)`, on unless turned off, read as each stroke begins, never
+sent) in rows of its own under the gestures' footnote, before Take the Tour, and §5.4's three
+footnotes: "Apple Pencil pressure and tilt reach Mac apps that support drawing tablets.", "Update
+Sill on ‹Mac› to use this." (a window list without `pencil`, or at a lower generation) and "Apple
+Pencil works as a mouse while this is off." The mock Mac takes a pen in every settings case but
+`legacy`; DEBUG `-SillSettingsScroll pencil` starts the rows at the switch.
+
+Verified (S2): iOS Debug and Release for the simulator and Debug for the owner's iPad, only the
+known `StreamClient` capture warning; photos on a private iPad mini simulator (iOS 27.0, deleted
+after) at 1000×710 and 710×1000 in the three states (on, `legacy`, `-Sill.pencilPressure 0`), and
+on at the largest accessibility text size; on a private iPhone 17 Pro Max simulator at 956×440, the
+panel's end has no Pencil row. No pure check covers the panel; `PenStrokes.penMode` (the `pen`
+check) already reads the switch. Not run: the switch flipped mid-session on a device (P10).

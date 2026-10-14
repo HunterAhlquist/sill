@@ -173,7 +173,8 @@ struct ContentView: View {
 ///   so a photo of a short screen shows the last groups (Direct Wireless, Away from home, This
 ///   iPad, Take the Tour). `-SillSettingsScroll gestures` starts them at the This iPad group
 ///   instead (its switch and rows, which the footnotes under them push out of the end's view on a
-///   short screen).
+///   short screen), and `-SillSettingsScroll pencil` at an iPad's Pencil Pressure row
+///   (`-Sill.pencilPressure 0` shows it off; the `legacy` case, a Mac that takes no pen).
 /// * `-SillSettingsCase <case>` — what the mock Mac's settings look like: `default` (Sill.app),
 ///   `cli`, `software`, `custom`, `vdproblem`, `vdstream`, `legacy`, `pending`, `timeout`,
 ///   `direct`, `directlink` (connected over it), `nodirect` (a host without it), `wired` or
