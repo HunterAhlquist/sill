@@ -248,8 +248,9 @@ struct ContentView: View {
 /// * `-SillInputScript '<t> <step>; …'` — with `-SillLive 1` only: input for the simulator gates,
 ///   which have no finger (`InputScript`): `t` is seconds since the session's first window list, and
 ///   a step is `down`, `pad DX,DY`, `lift` or `click` on the portrait pad, `tap X,Y` on the stream
-///   (a frame fraction), `key USAGE` (a hardware key) or `row USAGE` (a key of the portrait key
-///   row). The console says "input script: …" at each. It runs only when the session was dialled
+///   (a frame fraction), `key USAGE` (a hardware key), `row USAGE` (a key of the portrait key
+///   row) or `pen hover|down|move|up,X,Y[,P[,ALT,AZ]]` and `pen away` (an Apple Pencil over the
+///   stream). The console says "input script: …" at each. It runs only when the session was dialled
 ///   by `-SillConnect` to a loopback address and the host's first window list has no version
 ///   (Sill.app's always has, and would post the input to this Mac): else "input script: refused:
 ///   …" and nothing is sent. Point it only at `--synthetic` hosts.
@@ -583,7 +584,13 @@ struct LayoutHarness: View {
 /// * `gesture NAME[,FINGERS]` — a three-finger (or four-finger) gesture a surface decided, through
 ///   `StreamClient.sendGesture` as a surface's decision goes (the switch, the Mac's `gestures`, the
 ///   Desktop first while a window streams): swipeUp, swipeDown, swipeLeft, swipeRight, pinch or
-///   spread; the console says whether it went ("input script: t=… gesture swipeUp: sent").
+///   spread; the console says whether it went ("input script: t=… gesture swipeUp: sent");
+/// * `pen hover|down|move|up,X,Y[,P[,ALT,AZ]]` and `pen away` — an Apple Pencil over the stream at
+///   that fraction of the frame, with a pressure (0…1) and its altitude and azimuth in radians,
+///   through the overlay's own Pencil path under its touch callbacks (docs/pencil-pressure-plan.md
+///   §5.2): as a pen's (kind 29) or, with the switch off or a Mac that takes no pen, as the mouse
+///   events those callbacks send; `away` ends its hover. The console says which ("input script:
+///   t=… pen down,0.3,0.5,0.2: a pen's").
 /// The pad and the overlay register themselves as they join a window, and each step calls their
 /// own methods, so the feed, the anchor and the sprite get what a finger would give them. The
 /// console prints "input script: t=… <step>" as each runs. Once per launch.
@@ -598,6 +605,8 @@ enum InputScript {
     enum Step: Equatable, CustomStringConvertible {
         case down, pad(dx: Double, dy: Double), lift, click, tap(x: Double, y: Double), key(UInt16), row(UInt16)
         case gesture(TrackpadGestures.Gesture, fingers: Int)
+        /// hover, down, move, up or away, then X, Y and optionally P, ALT, AZ.
+        case pen(String, [Double])
 
         var description: String {
             switch self {
@@ -609,6 +618,7 @@ enum InputScript {
             case .key(let usage): return "key \(usage)"
             case .row(let usage): return "row \(usage)"
             case .gesture(let g, let fingers): return "gesture \(g.rawValue)" + (fingers == 3 ? "" : ",\(fingers)")
+            case .pen(let what, let values): return "pen \(([what] + values.map { "\($0)" }).joined(separator: ","))"
             }
         }
     }
@@ -640,6 +650,12 @@ enum InputScript {
                 let fingers = parts.count == 2 ? Int(parts[1]) : 3
                 guard let fingers, fingers == 3 || fingers == 4 else { return nil }
                 step = .gesture(g, fingers: fingers)
+            case ("pen", 3):
+                let parts = words[2].split(separator: ",").map(String.init)
+                let values = parts.dropFirst().compactMap { Double($0) }
+                guard let what = parts.first, ["hover", "down", "move", "up", "away"].contains(what), values.count == parts.count - 1,
+                      what == "away" ? values.isEmpty : [2, 3, 5].contains(values.count), values.allSatisfy(\.isFinite) else { return nil }
+                step = .pen(what, values)
             default: return nil
             }
             steps.append((at, step))
@@ -708,6 +724,12 @@ enum InputScript {
         case .row(let usage):
             client.sendFromKeyRow(.key(hidUsage: usage, down: true, modifiers: 0))
             client.sendFromKeyRow(.key(hidUsage: usage, down: false, modifiers: 0))
+        case .pen(let what, let v):
+            guard let overlay else { done = false; break }
+            let went = overlay.scriptPen(what, x: v.count > 1 ? v[0] : 0, y: v.count > 1 ? v[1] : 0, pressure: v.count > 2 ? v[2] : nil,
+                                         altitude: v.count > 4 ? v[3] : nil, azimuth: v.count > 4 ? v[4] : nil)
+            print(String(format: "input script: t=%.2f ", at) + "\(step): \(went)")
+            return
         case .gesture(let g, let fingers):
             let went = client.sendGesture(g, fingers: fingers)
             print(String(format: "input script: t=%.2f ", at) + "\(step): " + (went ? "sent" : "not sent (the switch is off, or the Mac takes none)"))

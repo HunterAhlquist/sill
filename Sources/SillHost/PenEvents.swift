@@ -17,22 +17,8 @@ package enum PenEvents {
     /// NX_TABLET_POINTER_PEN.
     package static let penPointer: Int64 = 1
 
-    /// One sample as macOS wants it: pressure 0…1, tilt −1…1 on each axis (x positive to the right,
-    /// y positive away from the user).
-    package struct Point: Equatable {
-        package var pressure: Double
-        package var tiltX: Double
-        package var tiltY: Double
-        /// The tip is on the glass: the pen's first button, as a tablet driver reports it.
-        package var tipDown: Bool
-
-        package init(pressure: Double, tiltX: Double = 0, tiltY: Double = 0, tipDown: Bool) {
-            self.pressure = min(max(pressure, 0), 1)
-            self.tiltX = min(max(tiltX, -1), 1)
-            self.tiltY = min(max(tiltY, -1), 1)
-            self.tipDown = tipDown
-        }
-    }
+    /// One sample as macOS wants it (PenTablet.swift, which decides them).
+    package typealias Point = PenPoint
 
     /// Makes a mouse event a pen's point. The subtype first: it says which of the event's two
     /// tablet layouts the fields after it are written to.

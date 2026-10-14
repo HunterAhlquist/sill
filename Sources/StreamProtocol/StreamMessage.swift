@@ -67,6 +67,11 @@ public enum StreamMessageKind: UInt8 {
     case gesture = 28        // device → host: JSON TrackpadGesture — a three- or four-finger gesture the device
                              // recognized, which the Mac turns into its own shortcut (Mission Control, a Space,
                              // Apps…). Only to a host whose window list says `gestures` 1 or more
+    // Apple Pencil pressure and tilt (Pen.swift). Older hosts map it to `.unknown` and skip it.
+    case pen = 29            // device → host: JSON PenInput — an Apple Pencil on the stream as a pen: one phase of a
+                             // stroke with its samples (position, pressure, tilt), which the Mac posts as the mouse
+                             // events of kind 8 carrying a tablet pen's fields. Only to a host whose window list says
+                             // `pencil` 1 or more; any other host gets the Pencil as kind 8
     case unknown = 255       // never sent: what parseHeader yields for a kind this build does not know
 }
 
