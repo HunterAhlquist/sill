@@ -21,17 +21,22 @@ package struct PenPoint: Equatable, Sendable {
 /// An Apple Pencil's messages (kind 29, Pen.swift) as what the Mac posts for them
 /// (docs/pencil-pressure-plan.md §4.1): the pen coming into range and leaving it, and each sample as
 /// a move, the left button down or the button up with a tablet pen's pressure and tilt. Pure: it
-/// decides, InputInjector posts (through its own pointer path, so the button's state, the click
-/// count and the dry run are shared with kind 8).
+/// decides, InputInjector posts (through its pointer path, with a button state of the pen's own).
+///
+/// The pen is a device of its own, as Sidecar's Pencil is on a Mac (recorded on macOS 27 with an
+/// iPad Pro, docs/pencil-pressure-plan.md §13): its down goes whoever else holds the left button,
+/// its stroke drags until its own up whoever else lets go meanwhile, and mouse input (kind 8: a
+/// finger, a trackpad, another device, the Mac's own mouse) neither ends the stroke nor takes the
+/// pen out of range. A mouse event never reads as a pen's: it carries no tablet fields.
 ///
 /// What it keeps true, whatever arrives and in whatever order:
 /// - every point lies between an enter and a leave;
-/// - a down it posted gets exactly one up: its own, a cancel's, a leave's, the device leaving, the
-///   host's end, or another device's left button coming up under it;
-/// - the pen leaves before any mouse input (kind 8: a finger, a trackpad, another device) is
-///   posted with the tip up, so no later click reads as a pen's, and by itself `idleLeave` seconds
-///   after its last message with the tip up (an iPad whose Pencil cannot hover says nothing between
-///   strokes).
+/// - a down it posted gets exactly one up: its own, a cancel's, a leave's, the device leaving, or
+///   the host's end;
+/// - the pen leaves by itself `idleLeave` seconds after its last message, when that was neither
+///   a hover nor with the tip down (an iPad whose Pencil cannot hover says nothing after a stroke's
+///   up). A hovering pen stays in range, however long it is held still, until its leave: Sidecar
+///   keeps its Pencil in range so, and a device sends the leave as its Pencil goes out of range.
 package struct PenTablet: Sendable {
     /// A connection, as KeyStrokes names one.
     package typealias Device = ObjectIdentifier
@@ -55,7 +60,8 @@ package struct PenTablet: Sendable {
         case up(Place?, PenPoint)
     }
 
-    /// Seconds after the last pen message, with the tip up, at which the pen leaves by itself.
+    /// Seconds after the last pen message, when it was neither a hover nor with the tip down, at
+    /// which the pen leaves by itself.
     package static let idleLeave = 1.0
     /// The least pressure a point carries while the tip is down: an app may read 0 as no contact.
     package static let pressureFloor = 0.01
@@ -64,15 +70,16 @@ package struct PenTablet: Sendable {
     package private(set) var inProximity = false
     /// A down this posted has not had its up.
     package private(set) var tipDown = false
+    /// The last message taken was a hover: the Pencil is over the glass, and leaves only by its leave.
+    package private(set) var hovering = false
     /// Whose pen it is: the device of the last message taken.
     private var owner: Device?
     private var lastPenAt = 0.0
 
     package init() {}
 
-    /// One pen message from `device`. `leftDown`: the Mac's left button is down now, whoever
-    /// pressed it. A message that is not usable (`PenInput.checked`) posts nothing.
-    package mutating func take(_ input: PenInput, from device: Device, leftDown: Bool, now: Double) -> [Post] {
+    /// One pen message from `device`. A message that is not usable (`PenInput.checked`) posts nothing.
+    package mutating func take(_ input: PenInput, from device: Device, now: Double) -> [Post] {
         guard let input = input.checked() else { return [] }
         // While one device draws, another's pen is not this tablet's.
         if tipDown, let owner, owner != device { return [] }
@@ -86,6 +93,7 @@ package struct PenTablet: Sendable {
         case PenInput.hover:
             guard let sample = samples.first else { return [] }
             owner = device
+            hovering = true
             if tipDown {
                 // A hover with the tip down: its up was lost. The button comes up here.
                 tipDown = false
@@ -95,15 +103,17 @@ package struct PenTablet: Sendable {
                 posts.append(.move(Self.place(sample), Self.point(sample, tipDown: false)))
             }
         case PenInput.down:
-            // A down while this pen's tip is down is a repeat; one while another device holds the
-            // button cannot press it again.
-            guard let sample = samples.first, !tipDown, !leftDown else { return [] }
+            // A down while this pen's tip is down is a repeat. Another source holding the left
+            // button does not stop it: the pen's button is its own.
+            guard let sample = samples.first, !tipDown else { return [] }
             owner = device
+            hovering = false
             enter(&posts)
             tipDown = true
             posts.append(.down(Self.place(sample), Self.point(sample, tipDown: true)))
         case PenInput.move:
             owner = device
+            hovering = false
             enter(&posts)
             for sample in samples { posts.append(.move(Self.place(sample), Self.point(sample, tipDown: tipDown))) }
         case PenInput.up, PenInput.cancel:
@@ -119,20 +129,6 @@ package struct PenTablet: Sendable {
         return posts
     }
 
-    /// Mouse input (kind 8) is about to be posted: a pointer event with its action, or a scroll
-    /// (nil). With the tip up the pen leaves first, so the event is no pen's. With the tip down
-    /// only the left button coming up changes anything: it ends this pen's stroke too.
-    package mutating func mouse(_ action: PointerAction?) -> [Post] {
-        if tipDown {
-            guard action == .leftUp else { return [] }
-            tipDown = false
-        }
-        guard inProximity else { return [] }
-        inProximity = false
-        owner = nil
-        return [.leave]
-    }
-
     /// `device` left: its pen's button comes up and the pen leaves.
     package mutating func deviceLeft(_ device: Device) -> [Post] {
         guard owner == device else { return [] }
@@ -142,9 +138,10 @@ package struct PenTablet: Sendable {
     /// The host is going: the button up, the pen out of range.
     package mutating func releaseAll() -> [Post] { letGo() }
 
-    /// Seconds until the pen leaves by itself; nil while it is out of range or its tip is down.
+    /// Seconds until the pen leaves by itself; nil while it is out of range, its tip is down, or it
+    /// hovers.
     package func leavesIn(now: Double) -> Double? {
-        guard inProximity, !tipDown else { return nil }
+        guard inProximity, !tipDown, !hovering else { return nil }
         return max(0, lastPenAt + Self.idleLeave - now)
     }
 
@@ -159,6 +156,7 @@ package struct PenTablet: Sendable {
         if tipDown { tipDown = false; posts.append(.up(nil, Self.lifted)) }
         if inProximity { inProximity = false; posts.append(.leave) }
         owner = nil
+        hovering = false
         return posts
     }
 
@@ -198,12 +196,27 @@ package struct PenTablet: Sendable {
         }
     }
 
+    /// Whether a message can move the Mac's pointer, and so opens PointerControl's settle as kind 8's
+    /// pointer events do: one with a sample. A leave, and a cancel without a sample, move nothing
+    /// (the pen goes out of range, or its button comes up, where the pointer is), as a pen leaving a
+    /// Mac tablet, or Sidecar's Pencil, moves no cursor. Either still hands its device the pointer, as
+    /// every input does. A message that does not decode moves nothing.
+    package static func movesPointer(_ input: PenInput) -> Bool {
+        guard let checked = input.checked() else { return false }
+        return !(checked.samples ?? []).isEmpty
+    }
+
+    /// The same for a kind 29 payload as the host reads it.
+    package static func movesPointer(payload: Data) -> Bool {
+        Wire.decode(PenInput.self, from: payload).map(movesPointer) ?? false
+    }
+
     /// Whether a message still goes when it has nowhere to land (nothing streams): an up or a
-    /// cancel while the Mac's left button is down, which this then lets up where the pointer is if
-    /// the pen pressed it, and a leave. A hover, a down and a move never do.
-    package static func stillGoes(_ input: PenInput, leftDown: Bool) -> Bool {
+    /// cancel while the pen's tip is down (`tipDown`), which this then lets up where the pointer is,
+    /// and a leave. A hover, a down and a move never do.
+    package static func stillGoes(_ input: PenInput, tipDown: Bool) -> Bool {
         switch input.phase {
-        case PenInput.up, PenInput.cancel: return leftDown
+        case PenInput.up, PenInput.cancel: return tipDown
         case PenInput.leave: return true
         default: return false
         }

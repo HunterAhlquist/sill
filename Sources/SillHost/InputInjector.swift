@@ -37,6 +37,9 @@ final class InputInjector {
     private var lastMoveArrival: CFTimeInterval = 0   // jitter probe, see apply()
     private var left = ButtonState()
     private var right = ButtonState()
+    /// An Apple Pencil's left button, apart from kind 8's: as with Sidecar's Pencil, its down goes
+    /// whoever else holds the button, and its stroke drags until its own up (PenTablet).
+    private var penButton = ButtonState()
 
     /// The Mac's pointer (docs/pointer-visibility-plan.md §4.5): told just before each post of a
     /// pointer or scroll event, never after. The network queue reads the pointer while this posts,
@@ -87,15 +90,12 @@ final class InputInjector {
                     else if gap > 0.025 { Stats.shared.bump("in.gap>25ms") }
                 }
             }
-            perform(penTablet.mouse(action), in: rect)   // a pen in range leaves first: this is no pen's event
             pointer(action, at: point(x, y, in: rect))
         case .scroll(let x, let y, let dx, let dy):
-            perform(penTablet.mouse(nil), in: rect)
             scroll(at: point(x, y, in: rect), dx: dx * rect.width, dy: dy * rect.height)
         case .text(let string):
             type(string, from: device)
         case .scrollGesture(let phase, let x, let y):
-            perform(penTablet.mouse(nil), in: rect)
             scrollGesture(phase, at: point(x, y, in: rect))
         case .key(let hidUsage, let down, let modifiers):
             key(hidUsage: hidUsage, down: down, modifiers: modifiers, from: device)
@@ -178,13 +178,23 @@ final class InputInjector {
     // MARK: Pointer
 
     /// `pen`: the event is an Apple Pencil's point and carries a tablet pen's pressure and tilt
-    /// (PenEvents.stamp); everything else about it is the mouse event kind 8 posts.
+    /// (PenEvents.stamp); everything else about it is the mouse event kind 8 posts, but its button,
+    /// which is the pen's own (`penButton`): its move is a drag exactly while its tip is down, as
+    /// Sidecar posts a Pencil's, whatever kind 8's buttons are doing.
     private func pointer(_ action: PointerAction, at location: CGPoint, pen: PenPoint? = nil) {
         let type: CGEventType
         let button: CGMouseButton
         var clicks: Int64 = 1
 
         switch action {
+        case .move where pen != nil:
+            type = pen?.tipDown == true ? .leftMouseDragged : .mouseMoved; button = .left; clicks = penButton.clicks
+        case .leftDown where pen != nil:
+            beginClick(&penButton, at: location)
+            type = .leftMouseDown; button = .left; clicks = penButton.clicks
+        case .leftUp where pen != nil:
+            penButton.isDown = false
+            type = .leftMouseUp; button = .left; clicks = penButton.clicks
         case .move:
             // A move with a button held is a drag; sending .mouseMoved instead would break
             // text selection and window dragging.
@@ -228,13 +238,13 @@ final class InputInjector {
     /// one with nowhere to land that still goes (`penStillGoes`).
     func pen(_ input: PenInput, in rect: CGRect, from device: KeyStrokes.Device) {
         if !dryRun { remindAboutAccessibilityIfNeeded() }
-        perform(penTablet.take(input, from: device, leftDown: left.isDown, now: CFAbsoluteTimeGetCurrent()), in: rect)
+        perform(penTablet.take(input, from: device, now: CFAbsoluteTimeGetCurrent()), in: rect)
         armPenIdle()
     }
 
-    /// Whether a pen message with nowhere to land still goes (PenTablet.stillGoes): the up of a
-    /// button the Mac has down, and a leave.
-    func penStillGoes(_ input: PenInput) -> Bool { PenTablet.stillGoes(input, leftDown: left.isDown) }
+    /// Whether a pen message with nowhere to land still goes (PenTablet.stillGoes): the up of the
+    /// pen's tip, and a leave.
+    func penStillGoes(_ input: PenInput) -> Bool { PenTablet.stillGoes(input, tipDown: penTablet.tipDown) }
 
     private func perform(_ posts: [PenTablet.Post], in rect: CGRect) {
         for item in posts {

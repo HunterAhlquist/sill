@@ -30,62 +30,60 @@ func near(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-9 }
 do {
     var pen = PenTablet()
     check(!pen.inProximity && !pen.tipDown, "a new tablet: out of range, the tip up")
-    check(pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 0) == [.enter, .move(place(0.3, 0.5), hovering())],
+    check(pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 0) == [.enter, .move(place(0.3, 0.5), hovering())],
           "the first hover: the pen enters, then moves without pressure")
     check(pen.inProximity && !pen.tipDown, "in range after a hover")
-    check(pen.take(message(PenInput.hover, sample(0.31, 0.5)), from: ipad, leftDown: false, now: 0.01) == [.move(place(0.31, 0.5), hovering())],
+    check(pen.take(message(PenInput.hover, sample(0.31, 0.5)), from: ipad, now: 0.01) == [.move(place(0.31, 0.5), hovering())],
           "a second hover: only the move")
-    check(pen.take(message(PenInput.down, sample(0.31, 0.5, p: 0.2)), from: ipad, leftDown: false, now: 0.02) == [.down(place(0.31, 0.5), drawing(0.2))],
+    check(pen.take(message(PenInput.down, sample(0.31, 0.5, p: 0.2)), from: ipad, now: 0.02) == [.down(place(0.31, 0.5), drawing(0.2))],
           "a down in range: the button down with its pressure")
     check(pen.tipDown, "the tip is down")
-    check(pen.take(message(PenInput.move, sample(0.32, 0.5, p: 0.4), sample(0.33, 0.5, p: 0.6), sample(0.34, 0.5, p: 0.8)), from: ipad, leftDown: true, now: 0.03)
+    check(pen.take(message(PenInput.move, sample(0.32, 0.5, p: 0.4), sample(0.33, 0.5, p: 0.6), sample(0.34, 0.5, p: 0.8)), from: ipad, now: 0.03)
           == [.move(place(0.32, 0.5), drawing(0.4)), .move(place(0.33, 0.5), drawing(0.6)), .move(place(0.34, 0.5), drawing(0.8))],
           "a move: every sample, oldest first, each with its pressure")
-    check(pen.take(message(PenInput.up, sample(0.34, 0.5)), from: ipad, leftDown: true, now: 0.04) == [.up(place(0.34, 0.5), lifted)],
+    check(pen.take(message(PenInput.up, sample(0.34, 0.5)), from: ipad, now: 0.04) == [.up(place(0.34, 0.5), lifted)],
           "an up: the button up there, without pressure")
     check(!pen.tipDown && pen.inProximity, "the tip up, the pen still in range")
-    check(pen.take(message(PenInput.up, sample(0.34, 0.5)), from: ipad, leftDown: false, now: 0.05) == [], "a second up: nothing")
-    check(pen.take(message(PenInput.leave), from: ipad, leftDown: false, now: 0.06) == [.leave], "a leave: the pen leaves")
+    check(pen.take(message(PenInput.up, sample(0.34, 0.5)), from: ipad, now: 0.05) == [], "a second up: nothing")
+    check(pen.take(message(PenInput.leave), from: ipad, now: 0.06) == [.leave], "a leave: the pen leaves")
     check(!pen.inProximity, "out of range")
-    check(pen.take(message(PenInput.leave), from: ipad, leftDown: false, now: 0.07) == [], "a second leave: nothing")
+    check(pen.take(message(PenInput.leave), from: ipad, now: 0.07) == [], "a second leave: nothing")
 }
 
 // A Pencil that cannot hover: the down comes first.
 do {
     var pen = PenTablet()
-    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, leftDown: false, now: 0) == [.enter, .down(place(0.5, 0.5), drawing(0.3))],
+    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, now: 0) == [.enter, .down(place(0.5, 0.5), drawing(0.3))],
           "a down out of range: the pen enters first")
-    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, leftDown: true, now: 0.01) == [], "a down with the tip down: nothing")
-    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, leftDown: false, now: 0.01) == [] && pen.tipDown,
+    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, now: 0.01) == [], "a down with the tip down: nothing")
+    check(pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, now: 0.01) == [] && pen.tipDown,
           "nor when the Mac's button reads up: the pen's own down still has no up")
-    check(pen.take(message(PenInput.cancel), from: ipad, leftDown: true, now: 0.02) == [.up(nil, lifted)], "a cancel without a sample: the button up where the pointer is")
-    check(pen.take(message(PenInput.cancel), from: ipad, leftDown: false, now: 0.03) == [], "a cancel with the tip up: nothing")
-    _ = pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, leftDown: false, now: 0.04)
-    check(pen.take(message(PenInput.cancel, sample(0.6, 0.6)), from: ipad, leftDown: true, now: 0.05) == [.up(place(0.6, 0.6), lifted)], "a cancel with a sample: the button up there")
+    check(pen.take(message(PenInput.cancel), from: ipad, now: 0.02) == [.up(nil, lifted)], "a cancel without a sample: the button up where the pointer is")
+    check(pen.take(message(PenInput.cancel), from: ipad, now: 0.03) == [], "a cancel with the tip up: nothing")
+    _ = pen.take(message(PenInput.down, sample(0.5, 0.5, p: 0.3)), from: ipad, now: 0.04)
+    check(pen.take(message(PenInput.cancel, sample(0.6, 0.6)), from: ipad, now: 0.05) == [.up(place(0.6, 0.6), lifted)], "a cancel with a sample: the button up there")
 }
 
 // Messages out of order.
 do {
     var pen = PenTablet()
-    check(pen.take(message(PenInput.move, sample(0.2, 0.2, p: 0.9)), from: ipad, leftDown: false, now: 0) == [.enter, .move(place(0.2, 0.2), hovering())],
+    check(pen.take(message(PenInput.move, sample(0.2, 0.2, p: 0.9)), from: ipad, now: 0) == [.enter, .move(place(0.2, 0.2), hovering())],
           "a move with the tip up (its down was lost): enters, and moves without pressure")
-    check(pen.take(message(PenInput.up, sample(0.2, 0.2)), from: ipad, leftDown: false, now: 0.01) == [], "an up without a down: nothing")
-    check(pen.take(message(PenInput.down, sample(0.2, 0.2, p: 0.5)), from: ipad, leftDown: true, now: 0.02) == [],
-          "a down while another device holds the button: nothing")
-    check(!pen.tipDown, "and the tip is not down")
-    _ = pen.take(message(PenInput.down, sample(0.2, 0.2, p: 0.5)), from: ipad, leftDown: false, now: 0.03)
-    check(pen.take(message(PenInput.hover, sample(0.4, 0.4)), from: ipad, leftDown: true, now: 0.04) == [.up(place(0.4, 0.4), hovering())],
+    check(pen.take(message(PenInput.up, sample(0.2, 0.2)), from: ipad, now: 0.01) == [], "an up without a down: nothing")
+    _ = pen.take(message(PenInput.down, sample(0.2, 0.2, p: 0.5)), from: ipad, now: 0.03)
+    check(pen.take(message(PenInput.hover, sample(0.4, 0.4)), from: ipad, now: 0.04) == [.up(place(0.4, 0.4), hovering())],
           "a hover with the tip down (its up was lost): the button up there")
     check(!pen.tipDown && pen.inProximity, "the tip up after it, still in range")
-    _ = pen.take(message(PenInput.down, sample(0.2, 0.2, p: 0.5)), from: ipad, leftDown: false, now: 0.05)
-    check(pen.take(message(PenInput.leave), from: ipad, leftDown: true, now: 0.06) == [.up(nil, lifted), .leave], "a leave with the tip down: the button up, then the pen leaves")
+    _ = pen.take(message(PenInput.down, sample(0.2, 0.2, p: 0.5)), from: ipad, now: 0.05)
+    check(pen.take(message(PenInput.leave), from: ipad, now: 0.06) == [.up(nil, lifted), .leave], "a leave with the tip down: the button up, then the pen leaves")
     check(!pen.tipDown && !pen.inProximity, "nothing left of it")
 }
 
 // What is not usable posts nothing and changes nothing.
 do {
     var pen = PenTablet()
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 0)
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 0)
+    _ = pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, now: 0)   // in range, its second running
     let before = (pen.inProximity, pen.tipDown, pen.leavesIn(now: 0.5))
     var nan = sample(0.5, 0.5, p: 0.5); nan.x = .nan
     let unusable: [PenInput] = [
@@ -95,35 +93,31 @@ do {
         PenInput(phase: PenInput.cancel, samples: [sample(0.5, 0.5), sample(0.5, 0.5)]), PenInput(phase: PenInput.hover),
     ]
     for input in unusable {
-        check(pen.take(input, from: ipad, leftDown: false, now: 0.4) == [], "not usable, nothing posted: \(input.phase) with \(input.samples?.count ?? 0)")
+        check(pen.take(input, from: ipad, now: 0.4) == [], "not usable, nothing posted: \(input.phase) with \(input.samples?.count ?? 0)")
     }
     check((pen.inProximity, pen.tipDown, pen.leavesIn(now: 0.5)) == before, "and nothing changed: not even the time it leaves at")
     var wild = sample(0.5, 0.5); wild.p = 1.8
-    check(pen.take(PenInput(phase: PenInput.down, samples: [wild]), from: ipad, leftDown: false, now: 0.6) == [.down(place(0.5, 0.5), drawing(1))],
+    check(pen.take(PenInput(phase: PenInput.down, samples: [wild]), from: ipad, now: 0.6) == [.down(place(0.5, 0.5), drawing(1))],
           "a pressure over 1 is clamped, not refused")
 }
 
 // MARK: Mouse input
+// As with Sidecar's Pencil (recorded, docs/pencil-pressure-plan.md §13): the pen is a device of its
+// own. Mouse input (kind 8) never reaches the tablet: no leave, no end to a stroke. These are the
+// pen's side of it, with another source's button held or let go meanwhile.
 
-for action in [PointerAction.move, .leftDown, .leftUp, .rightDown, .rightUp, nil] {
-    let name = action.map { "\($0)" } ?? "a scroll"
+do {
     var pen = PenTablet()
-    check(pen.mouse(action) == [], "\(name) with no pen in range: nothing")
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 0)
-    check(pen.mouse(action) == [.leave], "\(name) with the pen in range, its tip up: the pen leaves first")
-    check(!pen.inProximity, "out of range after \(name)")
-    check(pen.mouse(action) == [], "\(name) again: nothing")
-    check(pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 1) == [.enter, .move(place(0.3, 0.5), hovering())],
-          "the pen's next message after \(name) enters again")
-    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, leftDown: false, now: 1.1)
-    if action == .leftUp {
-        check(pen.mouse(action) == [.leave], "the left button coming up under the pen's stroke: the pen leaves (the button's up is the mouse's)")
-        check(!pen.tipDown && !pen.inProximity, "and the stroke is over")
-        check(pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 1.2) == [], "the pen's own up then posts nothing")
-    } else {
-        check(pen.mouse(action) == [], "\(name) during the pen's stroke: nothing")
-        check(pen.tipDown && pen.inProximity, "the stroke goes on through \(name)")
-    }
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 0)
+    check(pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 0.1) == [.down(place(0.3, 0.5), drawing(0.5))],
+          "a down goes whoever holds the left button: the pen's button is its own (Sidecar, step 4)")
+    check(pen.take(message(PenInput.move, sample(0.4, 0.5, p: 0.6)), from: ipad, now: 0.2) == [.move(place(0.4, 0.5), drawing(0.6))],
+          "and its stroke drags with pressure, whoever lets go meanwhile (Sidecar, steps 4 and 5)")
+    check(pen.take(message(PenInput.up, sample(0.4, 0.5)), from: ipad, now: 0.3) == [.up(place(0.4, 0.5), lifted)],
+          "its own up ends it")
+    check(pen.inProximity && !pen.tipDown, "still in range after the stroke, as a hover (Sidecar, step 8)")
+    check(pen.take(message(PenInput.hover, sample(0.5, 0.5)), from: ipad, now: 0.4) == [.move(place(0.5, 0.5), hovering())],
+          "a hover after mouse input needs no new enter")
 }
 
 // MARK: Leaving by itself
@@ -131,31 +125,54 @@ for action in [PointerAction.move, .leftDown, .leftUp, .rightDown, .rightUp, nil
 do {
     var pen = PenTablet()
     check(pen.leavesIn(now: 5) == nil && pen.idle(now: 5) == [], "out of range: nothing to wait for")
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 10)
-    check(PenTablet.idleLeave == 1, "a second")
-    check(pen.leavesIn(now: 10.25).map { near($0, 0.75) } == true, "0.25 s after its last message: 0.75 s to go")
-    check(pen.idle(now: 10.99) == [] && pen.inProximity, "at 0.99 s: still in range")
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 10.9)
-    check(pen.idle(now: 11.5) == [] && pen.leavesIn(now: 11.5).map { near($0, 0.4) } == true, "a message moves the time: 0.4 s to go at 11.5")
-    check(pen.leavesIn(now: 11.9) == 0 && pen.leavesIn(now: 30) == 0, "due, and never negative")
-    check(pen.idle(now: 11.9) == [.leave] && !pen.inProximity, "a second after its last message: the pen leaves")
-    check(pen.idle(now: 12) == [], "once")
-    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, leftDown: false, now: 20)
-    check(pen.leavesIn(now: 99) == nil && pen.idle(now: 99) == [], "with the tip down it never leaves by itself")
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 10)
+    check(pen.hovering && pen.leavesIn(now: 10) == nil, "hovering: no wait at all")
+    check(pen.idle(now: 70) == [] && pen.inProximity, "a minute of hovering held still: still in range (Sidecar, step 1)")
+    check(pen.take(message(PenInput.leave), from: ipad, now: 71) == [.leave] && !pen.hovering, "it leaves by its leave")
+    // A Pencil that cannot hover: after its up nothing comes, and the Mac lets it go.
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 80)
+    check(!pen.hovering && pen.leavesIn(now: 99) == nil && pen.idle(now: 99) == [], "with the tip down it never leaves by itself")
     check(pen.tipDown && pen.inProximity, "a stroke held for a minute is still a stroke")
-    _ = pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, leftDown: true, now: 99)
-    check(pen.idle(now: 99.5) == [] && pen.idle(now: 100) == [.leave], "a second after the up: the pen leaves (a Pencil that cannot hover)")
+    _ = pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, now: 99)
+    check(PenTablet.idleLeave == 1, "a second")
+    check(pen.leavesIn(now: 99.25).map { near($0, 0.75) } == true, "0.25 s after the up: 0.75 s to go")
+    check(pen.idle(now: 99.99) == [] && pen.inProximity, "at 0.99 s: still in range")
+    check(pen.leavesIn(now: 100) == 0 && pen.leavesIn(now: 300) == 0, "due, and never negative")
+    check(pen.idle(now: 100) == [.leave] && !pen.inProximity, "a second after the up: the pen leaves (a Pencil that cannot hover)")
+    check(pen.idle(now: 101) == [], "once")
+    // A move with the tip up (its down was lost) is no hover: it may still time out.
+    _ = pen.take(message(PenInput.move, sample(0.3, 0.5)), from: ipad, now: 200)
+    _ = pen.take(message(PenInput.move, sample(0.4, 0.5)), from: ipad, now: 200.9)
+    check(pen.idle(now: 201.5) == [] && pen.leavesIn(now: 201.5).map { near($0, 0.4) } == true, "a message moves the time: 0.4 s to go")
+    check(pen.idle(now: 201.9) == [.leave], "and then it leaves")
+    // Hovering again after an up: in range for good again.
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 300)
+    _ = pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, now: 300.1)
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 300.2)
+    check(pen.idle(now: 330) == [] && pen.inProximity, "a hover after the up: no timeout")
+    // A stroke after a hover ends the hover: after its up the second runs again, unless a hover
+    // comes (a Pencil lifted and held still says so as it lifts; one gone says leave).
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 340)
+    _ = pen.take(message(PenInput.up, sample(0.3, 0.5)), from: ipad, now: 340.1)
+    check(!pen.hovering && pen.idle(now: 341.1) == [.leave], "a hover, a stroke, then nothing: the pen leaves a second after the up")
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 350)
+    _ = pen.take(message(PenInput.move, sample(0.4, 0.5)), from: ipad, now: 350.1)
+    check(!pen.hovering && pen.idle(now: 351.1) == [.leave], "a hover, then a move with the tip up: the second runs again")
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 360)
+    // Another device's leave is not this pen's, nor its time.
+    check(pen.take(message(PenInput.leave), from: phone, now: 331) == [] && pen.hovering && pen.idle(now: 340) == [],
+          "another device's leave changes nothing of a hovering pen")
 }
 
 // MARK: Devices
 
 do {
     var pen = PenTablet()
-    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, leftDown: false, now: 0)
-    check(pen.take(message(PenInput.hover, sample(0.7, 0.7)), from: phone, leftDown: true, now: 0.1) == []
-          && pen.take(message(PenInput.down, sample(0.7, 0.7, p: 1)), from: phone, leftDown: true, now: 0.1) == []
-          && pen.take(message(PenInput.up, sample(0.7, 0.7)), from: phone, leftDown: true, now: 0.1) == []
-          && pen.take(message(PenInput.leave), from: phone, leftDown: true, now: 0.1) == [],
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 0)
+    check(pen.take(message(PenInput.hover, sample(0.7, 0.7)), from: phone, now: 0.1) == []
+          && pen.take(message(PenInput.down, sample(0.7, 0.7, p: 1)), from: phone, now: 0.1) == []
+          && pen.take(message(PenInput.up, sample(0.7, 0.7)), from: phone, now: 0.1) == []
+          && pen.take(message(PenInput.leave), from: phone, now: 0.1) == [],
           "while one device draws, another's pen posts nothing")
     check(pen.tipDown && pen.inProximity, "and the stroke goes on")
     check(pen.deviceLeft(phone) == [], "the other device leaving changes nothing")
@@ -164,9 +181,9 @@ do {
 }
 do {
     var pen = PenTablet()
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 0)
-    check(pen.take(message(PenInput.leave), from: phone, leftDown: false, now: 0.1) == [] && pen.inProximity, "another device's leave is not this pen's")
-    check(pen.take(message(PenInput.hover, sample(0.6, 0.6)), from: phone, leftDown: false, now: 0.2) == [.move(place(0.6, 0.6), hovering())],
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 0)
+    check(pen.take(message(PenInput.leave), from: phone, now: 0.1) == [] && pen.inProximity, "another device's leave is not this pen's")
+    check(pen.take(message(PenInput.hover, sample(0.6, 0.6)), from: phone, now: 0.2) == [.move(place(0.6, 0.6), hovering())],
           "with the tip up another device's pen takes over, already in range")
     check(pen.deviceLeft(ipad) == [] && pen.inProximity, "the first device leaving then changes nothing")
     check(pen.deviceLeft(phone) == [.leave], "the second leaving: the pen leaves")
@@ -174,9 +191,9 @@ do {
 do {
     var pen = PenTablet()
     check(pen.releaseAll() == [], "the host's end with no pen: nothing")
-    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, leftDown: false, now: 0)
+    _ = pen.take(message(PenInput.hover, sample(0.3, 0.5)), from: ipad, now: 0)
     check(pen.releaseAll() == [.leave], "the host's end with a pen in range: it leaves")
-    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, leftDown: false, now: 1)
+    _ = pen.take(message(PenInput.down, sample(0.3, 0.5, p: 0.5)), from: ipad, now: 1)
     check(pen.releaseAll() == [.up(nil, lifted), .leave] && pen.releaseAll() == [], "the host's end mid-stroke: the button up, the pen out of range, once")
 }
 
@@ -208,7 +225,7 @@ do {
     let point = PenTablet.point(sample(0, 0, p: 0.5, alt: 0, az: .pi / 2), tipDown: true)
     check(abs(point.tiltX) < 1e-4 && abs(point.tiltY + 1) < 1e-4, "a sample's angles reach its point (as the wire rounds them, to 4 places)")
     var pen = PenTablet()
-    let posts = pen.take(message(PenInput.hover, sample(0.5, 0.5, alt: .pi / 4, az: 0)), from: ipad, leftDown: false, now: 0)
+    let posts = pen.take(message(PenInput.hover, sample(0.5, 0.5, alt: .pi / 4, az: 0)), from: ipad, now: 0)
     check(posts == [.enter, .move(place(0.5, 0.5), hovering(PenTablet.tilt(altitude: PenSample(x: 0, y: 0, alt: .pi / 4).alt, azimuth: 0).x, 0))],
           "a hover carries its tilt, and no pressure")
 }
@@ -223,10 +240,21 @@ check(PenTablet.pointerEvent(for: message(PenInput.cancel, sample(0.3, 0.4))) ==
 check(PenTablet.pointerEvent(for: message(PenInput.cancel)) == .pointer(.leftUp, x: 0, y: 0), "a cancel without a sample too")
 check(PenTablet.pointerEvent(for: message(PenInput.leave)) == nil && PenTablet.pointerEvent(for: message("squeeze")) == nil, "a leave and an unknown phase to nothing")
 check(PenTablet.pointerEvent(for: PenInput(phase: PenInput.down)) == nil, "a down without a sample to nothing")
+// Which messages open the pointer's settle (StreamServer): those with a sample, never a leave.
+for phase in [PenInput.hover, PenInput.down, PenInput.move, PenInput.up, PenInput.cancel] {
+    check(PenTablet.movesPointer(message(phase, sample(0.3, 0.4))), "a \(phase) with a sample moves the pointer")
+    check(PenTablet.movesPointer(payload: Wire.encode(message(phase, sample(0.3, 0.4)))), "and so does its payload")
+}
+check(!PenTablet.movesPointer(message(PenInput.leave)), "a leave moves no pointer, as a pen leaving a tablet moves no cursor")
+check(!PenTablet.movesPointer(payload: Wire.encode(message(PenInput.leave))), "nor does its payload")
+check(!PenTablet.movesPointer(message(PenInput.cancel)), "nor does a cancel without a sample (its up goes where the pointer is)")
+check(!PenTablet.movesPointer(message("squeeze", sample(0.3, 0.4))) && !PenTablet.movesPointer(payload: Data("{".utf8)),
+      "nor an unknown phase or a payload that does not decode")
+check(!PenTablet.movesPointer(PenInput(phase: PenInput.down)), "nor a down without its sample (skipped)")
 for (phase, down, up) in [(PenInput.hover, false, false), (PenInput.down, false, false), (PenInput.move, false, false),
                           (PenInput.up, true, false), (PenInput.cancel, true, false), (PenInput.leave, true, true), ("squeeze", false, false)] {
-    check(PenTablet.stillGoes(message(phase, sample(0.5, 0.5)), leftDown: true) == down, "nowhere to land, the button down: \(phase) \(down ? "goes" : "is dropped")")
-    check(PenTablet.stillGoes(message(phase, sample(0.5, 0.5)), leftDown: false) == up, "nowhere to land, the button up: \(phase) \(up ? "goes" : "is dropped")")
+    check(PenTablet.stillGoes(message(phase, sample(0.5, 0.5)), tipDown: true) == down, "nowhere to land, the pen's tip down: \(phase) \(down ? "goes" : "is dropped")")
+    check(PenTablet.stillGoes(message(phase, sample(0.5, 0.5)), tipDown: false) == up, "nowhere to land, its tip up: \(phase) \(up ? "goes" : "is dropped")")
 }
 
 // MARK: The device (PenStrokes)
@@ -365,14 +393,9 @@ do {
     var device = PenStrokes()
     var mac = PenTablet()
     var posts: [Post] = []
-    var leftDown = false
     func send(_ input: PenInput, at now: Double) {
         guard let taken = Wire.decode(PenInput.self, from: Wire.encode(input)) else { check(false, "\(input.phase) does not survive the wire"); return }
-        for post in mac.take(taken, from: ipad, leftDown: leftDown, now: now) {
-            if case .down = post { leftDown = true }
-            if case .up = post { leftDown = false }
-            posts.append(post)
-        }
+        posts += mac.take(taken, from: ipad, now: now)
     }
     if device.hover(isPencil: true, penMode: true) == .pen { send(PenStrokes.message(PenInput.hover, reading(0.3, 0.5, alt: .pi / 4, az: 0, at: 1)), at: 1) }
     device.hoverEnded(now: 1.2)
@@ -406,17 +429,15 @@ struct Random {
     mutating func unit() -> Double { Double(next() % 10_001) / 10_000 }
 }
 
-/// What the Mac would hold after the posts so far, as InputInjector keeps it: the left button, and
-/// whether the pen is in range. `penHolds`: the button is down by a pen's down.
+/// What the Mac would hold after the posts so far, as InputInjector keeps it: the pen's own button
+/// (`penHolds`; kind 8's buttons are apart from it, as Sidecar's Pencil's are) and whether the pen is
+/// in range.
 struct Mac {
-    var leftDown = false, penHolds = false, inRange = false
+    var penHolds = false, inRange = false
     var problems: [String] = []
-    var enters = 0, leaves = 0, penDowns = 0, penUps = 0, strokesEndedByMouse = 0
+    var enters = 0, leaves = 0, penDowns = 0, penUps = 0
 
-    /// `before`: the mouse input these posts come ahead of, if any. The left button coming up under
-    /// the pen's stroke is the one time the pen leaves with its button down: the up that follows is
-    /// the mouse's.
-    mutating func post(_ posts: [Post], before: PointerAction?? = nil) {
+    mutating func post(_ posts: [Post]) {
         for item in posts {
             switch item {
             case .enter:
@@ -424,7 +445,7 @@ struct Mac {
                 inRange = true; enters += 1
             case .leave:
                 if !inRange { problems.append("a leave while out of range") }
-                if penHolds, before != .some(.leftUp) { problems.append("a leave with the pen's button down") }
+                if penHolds { problems.append("a leave with the pen's button down") }
                 inRange = false; leaves += 1
             case .move(_, let point):
                 if !inRange { problems.append("a point out of range") }
@@ -433,27 +454,15 @@ struct Mac {
                 if !point.tipDown, point.pressure != 0 { problems.append("pressure with the tip up") }
             case .down(_, let point):
                 if !inRange { problems.append("a down out of range") }
-                if leftDown { problems.append("a down with the button down") }
+                if penHolds { problems.append("a down with the pen's button down") }
                 if !point.tipDown || point.pressure < PenTablet.pressureFloor { problems.append("a down without its tip or pressure") }
-                leftDown = true; penHolds = true; penDowns += 1
+                penHolds = true; penDowns += 1
             case .up(_, let point):
                 if !inRange { problems.append("an up out of range") }
                 if !penHolds { problems.append("an up the pen did not press") }
                 if point.tipDown || point.pressure != 0 { problems.append("an up with its tip or pressure") }
-                leftDown = false; penHolds = false; penUps += 1
+                penHolds = false; penUps += 1
             }
-        }
-    }
-
-    /// Kind 8 from any device, after the tablet was told of it.
-    mutating func mouse(_ action: PointerAction?) {
-        if inRange, !penHolds { problems.append("mouse input with the pen in range, its tip up") }
-        switch action {
-        case .leftDown: leftDown = true
-        case .leftUp:
-            if penHolds { strokesEndedByMouse += 1 }
-            leftDown = false; penHolds = false
-        default: break
         }
     }
 }
@@ -461,7 +470,6 @@ struct Mac {
 var random = Random(state: 0x51_11)
 var sessions = 0, sessionProblems = 0, posted = 0
 let phases = PenInput.phases + ["squeeze"]
-let actions: [PointerAction?] = [.move, .leftDown, .leftUp, .rightDown, .rightUp, nil]
 for _ in 0..<5_000 {
     var pen = PenTablet()
     var mac = Mac()
@@ -478,13 +486,10 @@ for _ in 0..<5_000 {
             let count = [0, 1, 1, 1, 2, 3, 33][random.below(7)]
             let samples = (0..<count).map { _ in sample(random.unit(), random.unit(), p: random.below(5) == 0 ? nil : random.unit() * 1.2,
                                                          alt: random.below(3) == 0 ? nil : random.unit() * 1.6, az: random.unit() * 6.3 - 3.1) }
-            let posts = pen.take(PenInput(phase: phase, samples: samples.isEmpty ? nil : samples), from: device, leftDown: mac.leftDown, now: now)
+            let posts = pen.take(PenInput(phase: phase, samples: samples.isEmpty ? nil : samples), from: device, now: now)
             mac.post(posts); posted += posts.count
         case 7, 8:
-            let action = actions[random.below(actions.count)]
-            let posts = pen.mouse(action)
-            mac.post(posts, before: .some(action)); posted += posts.count
-            mac.mouse(action)
+            break   // mouse input (kind 8) from any device: the tablet is not told of it, and only time passes
         default:
             let posts = pen.deviceLeft(device)
             mac.post(posts); posted += posts.count
@@ -497,7 +502,7 @@ for _ in 0..<5_000 {
     }
     mac.post(pen.releaseAll())
     if mac.inRange || mac.penHolds { mac.problems.append("the host's end left the pen in range or its button down") }
-    if mac.penDowns != mac.penUps + mac.strokesEndedByMouse { mac.problems.append("\(mac.penDowns) downs, \(mac.penUps) ups and \(mac.strokesEndedByMouse) ended by the mouse") }
+    if mac.penDowns != mac.penUps { mac.problems.append("\(mac.penDowns) downs, \(mac.penUps) ups") }
     if mac.enters != mac.leaves { mac.problems.append("\(mac.enters) enters, \(mac.leaves) leaves") }
     sessions += 1
     if !mac.problems.isEmpty {

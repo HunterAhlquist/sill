@@ -3,12 +3,13 @@
 ## Status (2026-10-13)
 
 On the branch `pencil-pressure` (from main at 985a733). Built and passing (§13): step 0's
-headless half (H0), step 1 (the wire), step 2 (the host), step 3 (the device) and step 4 (the
-switch's row): an iPad on this build sends its Pencil to a Mac on this build as a pen, with
-pressure and tilt, palm rejection is in, and Settings › This iPad turns it off. Step 0's other half, P0, is the owner's: its first part passed (the window server
+headless half (H0), step 1 (the wire), step 2 (the host), step 3 (the device), step 4 (the
+switch's row), step 5 (the documents) and step 6 (the review): an iPad on this build sends its
+Pencil to a Mac on this build as a pen, with pressure and tilt, palm rejection is in, and
+Settings › This iPad turns it off. Step 0's other half, P0, is the owner's: its first part passed (the window server
 delivers the events whole to an AppKit app), and which drawing apps take them is still open.
 P1 to P10 are still open (the owner has drawn in Affinity, which found the line back to the
-start, §13). Not built: step 5 (the documents) and step 6 (the review). Line numbers are 985a733's.
+start, §13). What is left is the owner's: P0's per-app run and P1 to P10. Line numbers are 985a733's.
 
 **The request:** make Apple Pencil pressure and tilt reach Mac apps, where today the Pencil is only
 a mouse.
@@ -582,3 +583,131 @@ after) at 1000×710 and 710×1000 in the three states (on, `legacy`, `-Sill.penc
 on at the largest accessibility text size; on a private iPhone 17 Pro Max simulator at 956×440, the
 panel's end has no Pencil row. No pure check covers the panel; `PenStrokes.penMode` (the `pen`
 check) already reads the switch. Not run: the switch flipped mid-session on a device (P10).
+
+### Step 5, the documents (2026-10-13)
+
+- CLAUDE.md: a Current step entry; the compatibility floor at kinds 0–29 (Pen.swift's JSON, kind
+  29 only to a host whose window list says `pencil` 1 or more, its six phases and 32 samples,
+  `checked()`, and kind 26's `seen` counting kinds 8 and 29); Build and run's harness line gains
+  `-SillSettingsScroll pencil` and `-Sill.pencilPressure 0`. Layout and the rest of Build and run
+  had the Pencil since steps 0–3.
+- docs/DEVELOPMENT.md: an "Apple Pencil" section after Trackpad gestures (what reaches the Mac,
+  hover and the leave, palm rejection and its gap, the switch, the stats keys, `--pen-selftest`
+  and `PenProbe`); the Settings paragraph, the pure checks' list, the test client's `--pen` and
+  `--raw29`, the harness's Pencil arguments, and three probes in Layout.
+- site/privacy.html: what the device sends gains the Pencil's strokes with pressure and tilt, and
+  what it keeps gains Pencil Pressure. The log's line is unchanged: the Mac's log has no line of
+  the Pencil's own (a pen's down is a "Click at …" line, as any click; the stats lines count its
+  events; the input log's pen lines are TEST ONLY). The page's
+  "Last updated" date is left for the day the site goes out with it.
+- `Tests/checks/README.md` and CI's mutants matrix had `pen` since step 2.
+
+The public claims (README, the site's intro, the App Store's Pencil bullet) wait for P1–P4, as §8
+says.
+
+### Step 6, the review (2026-10-13)
+
+One pass over the branch against main (985a733), read by layer: the wire (`Pen.swift`, kind 29,
+`WindowList.pencil`), the host (`PenTablet`, `PenEvents`, the injector, StreamServer's count, the
+coordinator's rules, `Held.pen` and the dropped-input path), the device (`PenStrokes`, the
+overlay's touch and hover callbacks, `sendPen` and the shared move slot, the palm guards on both
+surfaces, `SessionLink`), the switch, the tools (PenProbe's guard, `sillclient.py`'s), the checks
+and the documents. Threads: InputInjector and the coordinator are main-actor, so the idle-leave
+task runs there; the device's palm and strokes are main-thread only.
+
+Fixed:
+
+- **The documents said the Mac's log names no Pencil event.** A pen's down in a streamed window
+  goes through `logClick` and is a "Click at …" line (at most one a second), as a finger's tap is.
+  DEVELOPMENT.md, CLAUDE.md and step 5's note now say so; the privacy page's log line already
+  covers it.
+
+Left, with the reason:
+
+- **`iOSClient/Sill.xcodeproj/project.xcworkspace/contents.xcworkspacedata`** came in with
+  38fc2f6. It is Xcode's default and harmless, but main never tracked it, so a pull request would
+  add an unrelated file: `git rm --cached` it before one (the owner's commit).
+- **A leave, and a cancel without a sample, open the pointer's settle.** StreamServer counts every
+  kind 29 as moving the pointer (`movesPointer`), where the device counts a leave as `.other`. The
+  effect: a Mac mouse move in the 0.25 s after a Pencil leaves is the Mac's a beat later. Telling
+  them apart means decoding kind 29 on the network queue for no visible gain.
+- **A pen down while another source holds the left button** (the portrait trackpad's
+  press-and-hold drag, under the same hand) is refused, and the stroke's moves then drag without
+  pressure. Two pointers on one button; no rule makes both right.
+
+For the device tests:
+
+- P5: a hovering Pencil held still for over a second sends nothing (UIKit reports hover on
+  movement), so the Mac's idle leave (`PenTablet.idleLeave`) takes it out of range and the next
+  hover update brings it back. Note whether an app's brush preview blinks.
+- P1: pressure is the force over its maximum, linear (Q7). Note whether ordinary strokes read
+  light in the apps.
+- P6: the known gap, a palm resting before the tip first lands.
+
+Verified on the reviewed tree: `swift build -c release` (only the CaptureProbe warning);
+`SillHost --pen-selftest` 37 of 37; `Tests/checks/run-all.sh`, all 41; the mutants of every check
+the branch changed: `pen` 90 of 90, `compatibility` 38 of 38, `fence` 33 of 33, `menus` 43 of 43,
+`pointer-control` 33 of 33; the iOS builds as at step 4. The host has not changed since step 2,
+whose H4 and H5 stand.
+
+### Sidecar's behaviour, and the edge cases (2026-10-14)
+
+The owner asked for the review's edge cases to follow Sidecar. Nothing written says how Sidecar
+handles them, so it was recorded: a read-only recorder (an AppKit window on the Sidecar display
+with local and global event monitors, posting nothing; in the session's scratchpad, not in the
+repository) logged every pointer, tablet and proximity event while the owner ran eight steps on
+an iPad Pro 13-inch (M4) with iPadOS 27.0.1, macOS 27.0.1. Step 4 was done twice; the second try
+counts.
+
+What Sidecar does:
+
+- **Proximity.** An enter as the Pencil comes within hover range (with a `mouseMoved` of subtype
+  2, tabletProximity, at the same place), then `mouseMoved` events of subtype 1, tabletPoint, with
+  pressure 0, tilt and rotation, every 16.7 ms (60 Hz) **while it hovers, held still or not**: 3 s
+  held still had no gap over 22 ms. The leave comes 17 ms after its last point as it goes out of
+  range. Strokes lifted well away between them: an enter and a leave around each.
+- **A stroke.** `leftMouseDown`, `leftMouseDragged`, `leftMouseUp`, all subtype 1, the down at
+  pressure 0.0784 every time, then the reading; pressure in 8-bit steps (n/255) in both the mouse
+  event's field and the tablet point's. Device ID 15203, capability mask 0x35c7, pointer type pen.
+- **The Mac's button held, then the Pencil (step 4).** The Pencil's hover posts `mouseMoved`
+  (not a drag) while the trackpad holds the button; its touch posts its own `leftMouseDown`
+  though the button is down, and drags with pressure. When the trackpad lets go (its
+  `leftMouseUp`, subtype 3), the Pencil's stroke goes on, `leftMouseDragged` with pressure while
+  the system reads no button down, and ends at the Pencil's own `leftMouseUp`.
+- **The Pencil down, then a Mac click (step 5).** The trackpad's up arrives mid-stroke; the stroke
+  goes on as above to the Pencil's own up. The trackpad's moves meanwhile are `mouseMoved`.
+- **Fingers (step 6).** One finger's tap or drag and a resting palm post nothing at all. A palm
+  resting while the Pencil draws (step 7): only the Pencil's events.
+- **The Mac's pointer moved while the Pencil hovers (step 8).** The pen stays in range throughout;
+  its hover points pause while the trackpad moves and resume after.
+
+Sill now does the same, but for fingers (direct touch is Sill's model: a tap is a click, and the
+palm rule stays):
+
+- **The pen's button is its own.** InputInjector keeps a button state for the pen apart from
+  kind 8's (`penButton`): its move is a drag exactly while its tip is down, its down goes
+  whoever holds the left button, its up is its own. PenTablet's `take` lost `leftDown`, and
+  `stillGoes` judges by the pen's tip.
+- **Mouse input never touches the pen.** `PenTablet.mouse` is gone: no leave before kind 8 input,
+  and the left button coming up under a stroke no longer ends it.
+- **A hovering pen does not time out.** `PenTablet.hovering`: while the last message was a hover,
+  `leavesIn` is nil, and the pen leaves by its leave (sent 0.1 s after the Pencil is neither
+  touching nor hovering), the device leaving or the host's end. The second's timeout stays for
+  the case it was for: an up with no hover after it (a Pencil that cannot hover), and a move with
+  the tip up. The device repeats nothing: Sidecar's held-still points move no pointer, and a
+  repeat every half second would pull the Mac's pointer back while someone else moves it.
+- **A leave opens no pointer settle** (the review's first edge case, before the recording):
+  `PenTablet.movesPointer`, used by StreamServer: a message without a sample moves nothing.
+
+Not followed: Sidecar's 8-bit pressure (Sill sends the tablet point's 16 bits, H0), and its fixed
+first pressure. Not sent by Sill: rotation (barrel roll, which Sidecar sends; §7 keeps it out).
+
+Verified: `pen` 197 checks and 5,000 random sessions, the model now with the pen's own button
+(never a leave with it down, every down with exactly one up), new cases for each rule above and
+for a minute's hover held still and for a stroke after a hover, 92 of 92 mutants caught (re-made
+for the rules: the settle, the hover's timeout; the old mouse rules' gone; the first run caught 87,
+and the three cases that survived were added); `Tests/checks/run-all.sh`, all 41; `swift build -c release`; a dry run on a `--synthetic` host
+(loopback, software encoder, the input log): a kind 8 down, then the pen entering, hovering as a
+plain move, its own down at 0.300 while the button is held, a drag, kind 8's up, the pen dragging
+on at 0.700 and its own up; a tap while it hovered (plain click events, no leave); the pen
+hovering 4.2 s with no message and staying in range until its leave.

@@ -1385,7 +1385,8 @@ final class StreamServer {
                     // in the same queue turn as every sample, so no kind 26 carries the new count
                     // with the old controller (docs/pointer-visibility-plan.md §3.3).
                     client.inputsRead += 1
-                    let moves = header.kind == .pen || PointerControl.movesPointer(payload: payload)
+                    let moves = header.kind == .pen ? PenTablet.movesPointer(payload: payload)
+                                                    : PointerControl.movesPointer(payload: payload)
                     self.pointerWatch?.inputArrived(from: ObjectIdentifier(c), movesPointer: moves)
                 }
                 if header.kind == .ping {

@@ -9,8 +9,12 @@ MODE = "guard switchOn, connected, let takes = hostPencil else { return false }"
 FORCE = "guard maximum > 0, force.isFinite, maximum.isFinite else { return 0 }"
 LEAVE = "guard stroke == nil, !hovering, canHover, told else { return false }"
 UP = "            guard tipDown else { return [] }\n            tipDown = false\n            posts.append(.up(samples.first.map(Self.place),"
-MOUSE_UP = "            guard action == .leftUp else { return [] }\n            tipDown = false\n"
+MOVES = "        return !(checked.samples ?? []).isEmpty"
 MUTANTS = [
+    # The pointer's settle
+    ("every pen message moves the pointer", TABLET, MOVES, "        return true"),
+    ("unchecked messages move the pointer", TABLET, "        guard let checked = input.checked() else { return false }",
+     "        let checked = input"),
     # Coming into range
     ("no enter before a hover", TABLET, "                enter(&posts)\n                posts.append(.move(Self.place(sample), Self.point(sample, tipDown: false)))",
      "                posts.append(.move(Self.place(sample), Self.point(sample, tipDown: false)))"),
@@ -18,10 +22,8 @@ MUTANTS = [
     ("no enter before a move", TABLET, "            enter(&posts)\n            for sample in samples", "            for sample in samples"),
     ("an enter with every message", TABLET, "if !inProximity { inProximity = true; posts.append(.enter) }", "inProximity = true; posts.append(.enter)"),
     # The tip
-    ("a down with the tip down posts again", TABLET, "guard let sample = samples.first, !tipDown, !leftDown else { return [] }",
-     "guard let sample = samples.first, !leftDown else { return [] }"),
-    ("a down under another device's button", TABLET, "guard let sample = samples.first, !tipDown, !leftDown else { return [] }",
-     "guard let sample = samples.first, !tipDown else { return [] }"),
+    ("a down with the tip down posts again", TABLET, "guard let sample = samples.first, !tipDown else { return [] }",
+     "guard let sample = samples.first else { return [] }"),
     ("a down never puts the tip down", TABLET, "            tipDown = true\n            posts.append(.down(", "            posts.append(.down("),
     ("an up without a down posts", TABLET, UP, UP.replace("            guard tipDown else { return [] }\n", "")),
     ("an up leaves the tip down", TABLET, UP, UP.replace("            tipDown = false\n", "")),
@@ -32,20 +34,20 @@ MUTANTS = [
      "posts.append(.move(Self.place(sample), Self.point(sample, tipDown: true))) }"),
     # Leaving
     ("a leave leaves the button down", TABLET, "if tipDown { tipDown = false; posts.append(.up(nil, Self.lifted)) }", "tipDown = false"),
-    ("a leave keeps the pen in range", TABLET, "        if inProximity { inProximity = false; posts.append(.leave) }\n        owner = nil\n        return posts", "        owner = nil\n        return posts"),
-    ("a leave posted when out of range", TABLET, "        if inProximity { inProximity = false; posts.append(.leave) }\n        owner = nil\n        return posts",
-     "        inProximity = false; posts.append(.leave)\n        owner = nil\n        return posts"),
-    # Mouse input
-    ("mouse input leaves the pen in range", TABLET, "        guard inProximity else { return [] }\n        inProximity = false\n        owner = nil\n        return [.leave]", "        return []"),
-    ("any mouse input ends the pen's stroke", TABLET, MOUSE_UP, "            tipDown = false\n"),
-    ("the left button's up under the stroke keeps the tip down", TABLET, MOUSE_UP, "            guard action == .leftUp else { return [] }\n"),
+    ("a leave keeps the pen in range", TABLET, "        if inProximity { inProximity = false; posts.append(.leave) }\n        owner = nil\n        hovering = false\n        return posts", "        owner = nil\n        hovering = false\n        return posts"),
+    ("a leave posted when out of range", TABLET, "        if inProximity { inProximity = false; posts.append(.leave) }\n        owner = nil\n        hovering = false\n        return posts",
+     "        inProximity = false; posts.append(.leave)\n        owner = nil\n        hovering = false\n        return posts"),
     # Devices
     ("another device's pen draws over the stroke", TABLET, "        if tipDown, let owner, owner != device { return [] }\n", ""),
     ("another device's leave lets go", TABLET, "            guard owner == nil || owner == device else { return [] }   // another device's pen is still here\n", ""),
     ("any device leaving lets go", TABLET, "        guard owner == device else { return [] }\n        return letGo()", "        return letGo()"),
     ("the host's end lets go of nothing", TABLET, "package mutating func releaseAll() -> [Post] { letGo() }", "package mutating func releaseAll() -> [Post] { [] }"),
     # Leaving by itself
-    ("leaves by itself with the tip down", TABLET, "guard inProximity, !tipDown else { return nil }", "guard inProximity else { return nil }"),
+    ("leaves by itself with the tip down", TABLET, "guard inProximity, !tipDown, !hovering else { return nil }", "guard inProximity, !hovering else { return nil }"),
+    ("a hovering pen leaves by itself", TABLET, "guard inProximity, !tipDown, !hovering else { return nil }", "guard inProximity, !tipDown else { return nil }"),
+    ("a down keeps the hover", TABLET, "            owner = device\n            hovering = false\n            enter(&posts)\n            tipDown = true", "            owner = device\n            enter(&posts)\n            tipDown = true"),
+    ("a move keeps the hover", TABLET, "        case PenInput.move:\n            owner = device\n            hovering = false\n", "        case PenInput.move:\n            owner = device\n"),
+    ("a leave keeps the hover", TABLET, "        owner = nil\n        hovering = false\n        return posts", "        owner = nil\n        return posts"),
     ("leaves after half a second", TABLET, "package static let idleLeave = 1.0", "package static let idleLeave = 0.5"),
     ("a wait that goes negative", TABLET, "return max(0, lastPenAt + Self.idleLeave - now)", "return lastPenAt + Self.idleLeave - now"),
     ("leaves at the first look", TABLET, "guard let wait = leavesIn(now: now), wait <= 0 else { return [] }", "guard leavesIn(now: now) != nil else { return [] }"),
@@ -75,8 +77,8 @@ MUTANTS = [
     ("a cancel amounts to nothing", TABLET, "case PenInput.up, PenInput.cancel: return .pointer(.leftUp,", "case PenInput.up: return .pointer(.leftUp,"),
     ("a leave amounts to a move", TABLET, "case PenInput.hover, PenInput.move: return last.map { .pointer(.move, x: $0.x, y: $0.y) }",
      "case PenInput.hover, PenInput.move: return last.map { .pointer(.move, x: $0.x, y: $0.y) }\n        case PenInput.leave: return .pointer(.move, x: 0, y: 0)"),
-    ("an up with nowhere to land always goes", TABLET, "case PenInput.up, PenInput.cancel: return leftDown", "case PenInput.up, PenInput.cancel: return true"),
-    ("a cancel with nowhere to land is dropped", TABLET, "case PenInput.up, PenInput.cancel: return leftDown", "case PenInput.up: return leftDown"),
+    ("an up with nowhere to land always goes", TABLET, "case PenInput.up, PenInput.cancel: return tipDown", "case PenInput.up, PenInput.cancel: return true"),
+    ("a cancel with nowhere to land is dropped", TABLET, "case PenInput.up, PenInput.cancel: return tipDown", "case PenInput.up: return tipDown"),
     ("a leave with nowhere to land is dropped", TABLET, "case PenInput.leave: return true", "case PenInput.leave: return false"),
     ("everything with nowhere to land goes", TABLET, "        default: return false\n        }\n    }\n}", "        default: return true\n        }\n    }\n}"),
     # The device: a pen's stroke or the mouse's
