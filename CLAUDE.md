@@ -5537,7 +5537,7 @@ good.
   32 at most; the leave, only when a Pencil that can hover is neither touching
   nor hovering 0.1 s later; `Palm`, the finger strokes that say nothing while
   the tip is on the glass, to their end, and for 0.5 s after it lifts; pure,
-  `Tests/checks/pen` with the host's PenTablet; pbxproj AC01/FC01).
+  `Tests/checks/pen` with the host's PenTablet; pbxproj A045/F045).
   InputOverlayView feeds it its Pencil touches (every coalesced reading) and
   hover and sends what it says through `PenLink` (`StreamClient.penLink`:
   `sendPen`, which counts as input and sends a hover as pointer moves go, the
