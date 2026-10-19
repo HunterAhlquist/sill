@@ -1,10 +1,11 @@
 #!/bin/bash
 # PenTablet (Sources/SillHost): an Apple Pencil's messages (kind 45) as what the Mac posts for them
 # (docs/pencil-pressure-plan.md §4.1): the pen coming into range before its first point and leaving
-# at each of its causes (the device's leave, a second without a message with the tip up, mouse input
-# from any device, the device leaving, the host's end), the tip as the left button (a down it
-# posted gets exactly one up), each sample's pressure and tilt as macOS wants them, the pointer
-# event a message amounts to for kind 8's rules, and what still goes with nowhere to land.
+# at each of its causes (the device's leave, a second after an up with no hover since, the device
+# leaving, the host's end), never for mouse input nor for a hover held still, as Sidecar's Pencil;
+# the tip as the left button, the pen's own (a down it posted gets exactly one up), each sample's
+# pressure and tilt as macOS wants them, the pointer event a message amounts to for kind 8's rules,
+# and what still goes with nowhere to land.
 # Scenarios with the exact posts, and random sessions of two devices' pens and mouse input against
 # a model and its invariants.
 # PenStrokes (iOSClient): what the device sends: whether a stroke goes as a pen's or the mouse's,

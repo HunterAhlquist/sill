@@ -6,10 +6,10 @@ On the branch `pencil-pressure` (from main at 985a733). Built and passing (§13)
 headless half (H0), step 1 (the wire), step 2 (the host), step 3 (the device), step 4 (the
 switch's row), step 5 (the documents) and step 6 (the review): an iPad on this build sends its
 Pencil to a Mac on this build as a pen, with pressure and tilt, palm rejection is in, and
-Settings › This iPad turns it off. Step 0's other half, P0, is the owner's: its first part passed (the window server
+Settings › This iPad turns it off. Step 0's other half, P0, is Hunter's: its first part passed (the window server
 delivers the events whole to an AppKit app), and which drawing apps take them is still open.
-P1 to P10 are still open (the owner has drawn in Affinity, which found the line back to the
-start, §13). What is left is the owner's: P0's per-app run and P1 to P10. Line numbers are 985a733's.
+P1 to P10 are still open (Hunter has drawn in Affinity, which found the line back to the
+start, §13). What is left is Hunter's: P0's per-app run and P1 to P10. Line numbers are 985a733's.
 
 **Rebased onto main (2026-10-20, branch `pencil-pressure-rebased` in Saffsanity/sill).** The pen
 is kind 45, not 29: main keeps 29 to 31 free (29 the audio plan's, 30 and 31 pull request #66's),
@@ -58,8 +58,8 @@ Kind 8 is special in six places, and Pencil input in a new kind must be treated 
 
 ## 2. Decisions
 
-Each is a default the implementer takes unless the owner says otherwise (§12 lists the ones that
-are the owner's call).
+Each is a default the implementer takes unless Noah, Sill's maintainer, says otherwise (§12 lists
+the ones that are his call).
 
 1. **A new kind 45, `pen`, device → host.** Not an optional field on `.pointer`: that would keep
    one message per sample (240 small TCP messages a second), give hover's end no message of its
@@ -288,11 +288,11 @@ its other steps).
 | S2 | Photos of the Settings group at the iPad's sizes and the largest text size, in its three footnote states; no row on a phone |
 | S3 | `Tests/touchrig` if `TouchSynth` can make a `.pencil` touch with a force: a Pencil stroke with a finger landing mid-stroke sends no click and no scroll. If it cannot, this is a device test (P6) |
 
-### On a device (an iPad with an Apple Pencil; the owner's)
+### On a device (an iPad with an Apple Pencil; Hunter's)
 
 | | Gate |
 |---|---|
-| P0 | **Step 0's real probe, before anything else is built.** A scratch tool posts one synthetic stroke with a pressure ramp and a tilt sweep into the frontmost app after a countdown. Run it by hand over each app that matters (Krita, Blender's sculpt and Grease Pencil, Photoshop or Affinity, Pixelmator Pro, Freeform) and note which draw a line that swells. Repeat without the proximity events (`--no-proximity`), to learn whether they are needed, and with the mouse event's pressure set too (`--mouse-pressure`, Q8). It posts to the Mac, so the owner runs it, never an agent session. Built: `PenProbe` (§13) |
+| P0 | **Step 0's real probe, before anything else is built.** A scratch tool posts one synthetic stroke with a pressure ramp and a tilt sweep into the frontmost app after a countdown. Run it by hand over each app that matters (Krita, Blender's sculpt and Grease Pencil, Photoshop or Affinity, Pixelmator Pro, Freeform) and note which draw a line that swells. Repeat without the proximity events (`--no-proximity`), to learn whether they are needed, and with the mouse event's pressure set too (`--mouse-pressure`, Q8). It posts to the Mac, so a person at the Mac runs it (Hunter did), never an agent session. Built: `PenProbe` (§13) |
 | P1 | Pressure in each app P0 passed: a light and a heavy stroke differ, and a stroke starts thin |
 | P2 | Tilt in an app with a tilt brush: leaning the Pencil each way shades the matching way |
 | P3 | The Pencil is still the mouse everywhere else: click, double-click, drag a window, select text, menus |
@@ -329,7 +329,7 @@ built with that profile, never in the CLI or a development build. That is its ow
 
 | | Question | Default taken |
 |---|---|---|
-| Q1 | **The owner's call.** While drawing, a Mac app's brush cursor is the Mac's cursor, which Sill leaves out of the video, and the device's own arrow is hidden for the Pencil (the pointer plan's Q2, decided). So a hovering Pencil previews no brush. Flip `PointerPresence.pencilShowsPointer` to true while the Pencil hovers in pen mode? | Unchanged: no arrow. Recommended: show it while hovering in pen mode, after P5 is tried without it |
+| Q1 | **Noah's call.** While drawing, a Mac app's brush cursor is the Mac's cursor, which Sill leaves out of the video, and the device's own arrow is hidden for the Pencil (the pointer plan's Q2, decided). So a hovering Pencil previews no brush. Flip `PointerPresence.pencilShowsPointer` to true while the Pencil hovers in pen mode? | Unchanged: no arrow. Recommended: show it while hovering in pen mode, after P5 is tried without it |
 | Q2 | The device switch | Yes, on by default (§2.8) |
 | Q3 | The pressure floor of 0.01 while the tip is down | Yes; P0 says whether any app needs it |
 | Q4 | Space a batch's samples in time (set each event's timestamp from `t`, or post them `t` apart)? | Back to back. Revisit if P4 shows uneven strokes |
@@ -377,7 +377,7 @@ delivery: an event posted to a process (`postToPid`) or handed to `NSApp.sendEve
 canvas as proximity but not as a mouse event, since the window server is what gives a mouse event
 its window. Delivery through the window server is exactly what P0 tests.
 
-### P0, for the owner
+### P0, for Hunter
 
 It posts three left-button drags where the pointer is, after a countdown, so it is run by hand.
 The terminal needs Accessibility (it asks the first time). Build once:
@@ -430,7 +430,7 @@ Verified:
   position, a leave with one, a non-finite number, and any host that is not a `--synthetic` one
   on this Mac.
 
-### P0, the canvas (2026-10-13, run by the owner)
+### P0, the canvas (2026-10-13, run by Hunter)
 
 `PenProbe --post-to-this-mac`, twice, over `PenProbe --canvas` (macOS 27.0.1): **delivery works.**
 Posted at the HID event tap and routed by the window server, the events reached an AppKit view
@@ -445,7 +445,7 @@ as built:
   arrive as drags; the pen strokes lost none. Not looked into: it is today's mouse path.)
 
 So an app that reads `NSEvent`'s pressure and tilt gets them. Still open: the third-party drawing
-apps (step 2 of "P0, for the owner"), and with them `--no-proximity` and `--mouse-pressure`.
+apps (step 2 of "P0, for Hunter"), and with them `--no-proximity` and `--mouse-pressure`.
 
 ### Step 2, the host (2026-10-13)
 
@@ -553,9 +553,9 @@ simulator has no Pencil, and the script drives the code under the touch callback
 callbacks). S3 was not attempted: P6 covers it.
 
 
-### The line back to the start (2026-10-13, found on the owner's iPad)
+### The line back to the start (2026-10-13, found on Hunter's iPad)
 
-The owner, drawing in Affinity on an iPad Pro 13-inch (M4) with iPadOS 27.0.1, saw every stroke end
+Hunter, drawing in Affinity on an iPad Pro 13-inch (M4) with iPadOS 27.0.1, saw every stroke end
 with a straight line back to where it began, in main's build (the Pencil as the mouse) and in step
 3's (as a pen). Found with the device's console (`devicectl device process launch --console`) and
 the Mac's log, both carrying tagged lines for the run, read by a script that judges each stroke:
@@ -569,7 +569,7 @@ was a drag back to the start.
 Fixed: `PenStrokes.hover(isPencil:penMode:)` answers `.pen`, `.mouse` or `.ignore`, and any hover
 while a Pencil touch is down is ignored, in both modes, nor does it count as hovering. Verified: the
 `pen` check's new cases fail 8 times on the rule as it was and pass now (215 checks), and the `pen` mutants 90 of 90 caught (the rule as
-it was among them); on the owner's iPad again with the same logs, 5 of 5 strokes green, the stale update still
+it was among them); on Hunter's iPad again with the same logs, 5 of 5 strokes green, the stale update still
 arriving in each and none sent on. The logging is gone.
 
 ### Step 4, the switch (2026-10-13)
@@ -582,7 +582,7 @@ Sill on ‹Mac› to use this." (a window list without `pencil`, or at a lower g
 Pencil works as a mouse while this is off." The mock Mac takes a pen in every settings case but
 `legacy`; DEBUG `-SillSettingsScroll pencil` starts the rows at the switch.
 
-Verified (S2): iOS Debug and Release for the simulator and Debug for the owner's iPad, only the
+Verified (S2): iOS Debug and Release for the simulator and Debug for Hunter's iPad, only the
 known `StreamClient` capture warning; photos on a private iPad mini simulator (iOS 27.0, deleted
 after) at 1000×710 and 710×1000 in the three states (on, `legacy`, `-Sill.pencilPressure 0`), and
 on at the largest accessibility text size; on a private iPhone 17 Pro Max simulator at 956×440, the
@@ -631,7 +631,7 @@ Left, with the reason:
 
 - **`iOSClient/Sill.xcodeproj/project.xcworkspace/contents.xcworkspacedata`** came in with
   38fc2f6. It is Xcode's default and harmless, but main never tracked it, so a pull request would
-  add an unrelated file: `git rm --cached` it before one (the owner's commit).
+  add an unrelated file: `git rm --cached` it before one (Hunter's commit).
 - **A leave, and a cancel without a sample, open the pointer's settle.** StreamServer counts every
   kind 29 as moving the pointer (`movesPointer`), where the device counts a leave as `.other`. The
   effect: a Mac mouse move in the 0.25 s after a Pencil leaves is the Mac's a beat later. Telling
@@ -657,10 +657,10 @@ whose H4 and H5 stand.
 
 ### Sidecar's behaviour, and the edge cases (2026-10-14)
 
-The owner asked for the review's edge cases to follow Sidecar. Nothing written says how Sidecar
+Hunter asked for the review's edge cases to follow Sidecar. Nothing written says how Sidecar
 handles them, so it was recorded: a read-only recorder (an AppKit window on the Sidecar display
 with local and global event monitors, posting nothing; in the session's scratchpad, not in the
-repository) logged every pointer, tablet and proximity event while the owner ran eight steps on
+repository) logged every pointer, tablet and proximity event while Hunter ran eight steps on
 an iPad Pro 13-inch (M4) with iPadOS 27.0.1, macOS 27.0.1. Step 4 was done twice; the second try
 counts.
 
