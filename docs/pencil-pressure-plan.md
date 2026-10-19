@@ -14,7 +14,7 @@ start, §13). What is left is Hunter's: P0's per-app run and P1 to P10. Line num
 **Rebased onto main (2026-10-20, branch `pencil-pressure-rebased` in Saffsanity/sill).** The pen
 is kind 45, not 29: main keeps 29 to 31 free (29 the audio plan's, 30 and 31 pull request #66's),
 32 is the clipboard, and open pull requests hold 33 to 44 (#66's, #94's 43, #93's 44). §2 to §9
-say 45; §13's results before the rebase say 29, as they were run.
+say 45; §13's results before the rebase say 29, as they were run. §13's last section has the rebase.
 
 **The request:** make Apple Pencil pressure and tilt reach Mac apps, where today the Pencil is only
 a mouse.
@@ -716,3 +716,84 @@ and the three cases that survived were added); `Tests/checks/run-all.sh`, all 41
 plain move, its own down at 0.300 while the button is held, a drag, kind 8's up, the pen dragging
 on at 0.700 and its own up; a tap while it hovered (plain click events, no leave); the pen
 hovering 4.2 s with no message and staying in range until its leave.
+
+### Rebased onto main (2026-10-20)
+
+Noah: "Work on Apple Pencil pressure (the contributor's work needs a free message number, 44 or
+above, since every lower one is now claimed by open pull requests)." The branch
+`pencil-pressure-rebased` in Saffsanity/sill starts at main's d1fa97e. Its first commit (593cc12) is
+the stale hover of "The line back to the start" on main's mouse path alone (`pencilTouching`), so it
+can land ahead of the rest. Then Hunter's five commits, merged as they are (328314f: never rebased
+or squashed, each keeping its author), then the maintainer's commits, and main again at 9a8e30c
+(#136; only ci.yml's matrix conflicted).
+
+The merge: eighteen files conflicted, every resolution keeping both sides. Main had gained the
+clipboard (#78), the hardware keyboard and trackpad (#80) and Larger Picture (#79) since 985a733:
+
+- `WindowList` keeps `clipboard` and gains `pencil`; one init takes both, and the coordinator's list
+  sends both. compatibility's mutants follow the new init.
+- `handlePan`: #80 moved the finger pan's body onto `scroll(gesture, .finger)`, a path it shares
+  with the iPad's trackpad and a wheel. The palm guard stays in `handlePan`, before that call, so a
+  palm silences fingers only.
+- The stale-hover flag of 593cc12 gives way to `PenStrokes.hover`, the same rule in both modes
+  (`gone()` resets it as the view leaves its window).
+- Settings › This iPad: Larger Picture (an iPhone's), Share Clipboard, the gestures, then Pencil
+  Pressure (an iPad's). `-SillInputScript` has #80's steps and the pen's. sillclient.py has the
+  clipboard's flags and the pen's.
+
+After the merge:
+
+- **Kind 45.** 29 was free on 985a733. On main the clipboard's comment and checks keep 29 to 31
+  free (29 the audio plan's, 30 and 31 #66's side streams), 32 is the clipboard, and open pull
+  requests hold 33 to 44 (#66's 33 to 42, #158's 33 too, #94's 43, #93's `keyframeRequest` 44:
+  read at every open head on 2026-10-20, #93's at 09549b3). 45 is in no head. `case pen = 45`;
+  SessionLink counts 8 and 45; sillclient.py's `--raw45`; the docs; the compatibility floor's kinds
+  0–28, 32 and 45.
+  The checks: compatibility (kind 45, 46 unknown, the mutant "kind 45 as 46"), protocol (main's two
+  kind checks kept, the pen at 45 and 46 unknown), pointer-control (the table and the sweep), fence
+  (input and the two C10 mutants at 45). menus' line and mutant and pointer-control's two
+  renumbering mutants are main's again, 29 being free once more; clipboard passes unchanged.
+- **Project IDs.** PenStrokes.swift had A1000001000000000000AC01 and …FC01, which #80 gave
+  HardwareKeyboardPolicy.swift. The project merged without a conflict but then held each ID twice,
+  xcodebuild skipped one file ("Skipping duplicate build file") and the build failed on
+  HardwareKeyboardPolicy. Now A045/F045, in no project file on main or at any open head.
+- **The workspace file** (be8abf4 untracked it, a85fba7 brought it back): out.
+- **The site.** privacy.html's two Pencil items now stand alone between `<!-- Pencil: …` and
+  `<!-- /Pencil -->`, as the clipboard's are, and docs/release-checklist.md part 1 §3 cuts them
+  before the Pencil's release. Checked on a copy: after the cut, site/ is main's byte for byte.
+- **sillclient.py** prints `pencil=` on the window list's line.
+- **Docs.** §2 to §9 say 45 (the results above say 29, as they were run); Hunter and Noah by name
+  where the plan said "the owner"; the pen check's header after Sidecar's rules; CLAUDE.md's entry
+  as a Current step entry.
+
+Verified (2026-10-20, on a Mac busy with other sessions, load averages of 30 to 990):
+
+- **Builds.** `swift build -c release` from `git archive` of the branch, only the CaptureProbe
+  warning; the iOS app for the simulator in Debug (CI's command) and Release and for a generic device
+  in Debug, only the known StreamClient capture warning, PenStrokes.swift compiled and no file
+  skipped. 593cc12 alone builds too (Debug, the simulator).
+- **`SillHost --pen-selftest`:** 37 ok, "All readings are what was written.", nothing posted.
+- **The checks.** `Tests/checks/run-all.sh`, all 46 (#136's `installed-apps` among them). `pen` 197
+  checks and 5,000 random sessions, 92 of 92 mutants; `compatibility` 157, 41 of 41;
+  `pointer-control` 158, 33 of 33; `protocol` 193 and the 8 cross-checks, PROTOCOL of 24; `menus` 309,
+  43 of 43; `fence` its 17 modes, 33 of 33; `clipboard` 259; `key-strokes` 347;
+  `pointer-presence` 165; `gestures` 156; `message-reader`; `hardware-keyboard` 51.
+- **H4**, the CLI's stdout against main's (9a8e30c; both from `git archive`, `--synthetic` on
+  loopback with the software encoder): idle for 35 s identical masked and sorted (7 lines); with a
+  Desktop client, three runs: one identical (32 lines), two identical but for the per-second stats
+  lines, whose seconds fell differently (the second the client left; the software encoder stalling
+  under the machine's load, four times in each build alike).
+- **H5**, a dry run (`SILL_TEST_INPUT_LOG=1`, a scripted pointer) fed by `sillclient.py`: this
+  host's window list says `pencil=1`, and its log reads the pen entering, a hover at tilt
+  0.47,0.26, the down at 0.200, drags at 0.400, 0.800 and 1.000 with their tilts, the up at 0.000, a
+  hover, a finger's tap as plain mouse events with no leave before it, and the pen leaving at the
+  device's leave. Main's host says no `pencil`, skips kind 45 and logs the tap alone.
+- **S1**, on a private iPad Pro 13-inch (M4) simulator (iOS 27.0, deleted after) with `-SillLive 1
+  -SillConnect` and `-SillInputScript`'s pen steps: against this host every step went "a pen's" and
+  the host logged H5's sequence; against main's every step went "the mouse's" and the host logged
+  plain moves, a down, drags and an up. The mock's Settings panel shows Pencil Pressure under the
+  gestures, before Take the Tour.
+
+Not run here: anything on a device (P0's per-app run, P1 to P10), and with them, on this rebase, a
+finger's scroll, the iPad's trackpad and a wheel beside the Pencil, and the This iPad group with Share
+Clipboard on a real iPad. The open questions (§12) keep their defaults.
