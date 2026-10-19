@@ -75,6 +75,11 @@ public enum StreamMessageKind: UInt8 {
                              // on), its text becomes the Mac's clipboard, and `stop` ends the subscription; only
                              // to a host whose window list says `clipboard` 1 or more. Host → device: text copied
                              // on the Mac (or sent by another device), only to a connection that subscribed
+    // Apple Pencil pressure and tilt (Pen.swift). Older hosts map it to `.unknown` and skip it.
+    case pen = 29            // device → host: JSON PenInput — an Apple Pencil on the stream as a pen: one phase of a
+                             // stroke with its samples (position, pressure, tilt), which the Mac posts as the mouse
+                             // events of kind 8 carrying a tablet pen's fields. Only to a host whose window list says
+                             // `pencil` 1 or more; any other host gets the Pencil as kind 8
     case unknown = 255       // never sent: what parseHeader yields for a kind this build does not know
 }
 
