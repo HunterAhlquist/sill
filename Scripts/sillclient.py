@@ -42,7 +42,9 @@ usage: sillclient.py PORT [seconds] [desktop|none|window:ID] [flags...]
                      and azimuth in radians; e.g. --pen=down,0.3,0.5,0.2@2 --pen=move,0.4,0.5,0.8,1.0,0.5@2.1
   --raw45=JSON@T     send this literal kind 45 payload T seconds in (split on the last @): several
                      samples, a phase --pen does not make
-                     --pen and --raw45 go only to a --synthetic host on this Mac, as input does
+                     --pen and --raw45 go only to a --synthetic host on this Mac, as input does; the
+                     window list's line says pencil= when the host takes a pen (a host without it
+                     skips kind 45, and a device sends such a host its Pencil as kind 8)
   --hello=VER[,PROTO] send a hello (kind 23) first, before the select, as a device from 2026-09-25 on does:
                      {"appVersion": VER, "protocol": PROTO, "device": the --device name, else "sillclient"};
                      --hello=none sends {} (a hello with nothing in it). Without it no hello is sent: an
@@ -820,7 +822,8 @@ while time.time() - t0 < dur:
         elif kind == 2:
             d = json.loads(payload)
             print(f"  windowList: {len(d.get('windows', []))} windows, active={d.get('active')}"
-                  + (f" clipboard={d['clipboard']}" if "clipboard" in d else ""))
+                  + (f" clipboard={d['clipboard']}" if "clipboard" in d else "")
+                  + (f" pencil={d['pencil']}" if "pencil" in d else ""))
         elif kind == 32:
             try:
                 d = json.loads(payload)
