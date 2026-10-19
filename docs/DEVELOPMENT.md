@@ -350,7 +350,8 @@ reading the Pencil gives (up to 240 a second), and the Mac posts the mouse
 events it would post anyway with the tablet fields on them, and tells apps the
 pen came into range before its first point and left after its last. On an
 iPad and Pencil that support hover, the Pencil moves the pointer while it
-hovers and leaves range a tenth of a second after it is neither touching nor
+hovers, with the Mac cursor under it when that is an app's own, a drawing app's brush
+outline (never a standard arrow, I-beam or hand; hidden while the tip draws), and leaves range a tenth of a second after it is neither touching nor
 hovering, however long it is held still; one that cannot hover leaves a second
 after its last stroke. As with Sidecar's Pencil, the Pencil's button is its
 own: a stroke draws while another pointer holds the Mac's button (the Mac's

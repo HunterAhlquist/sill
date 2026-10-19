@@ -244,7 +244,8 @@ struct ContentView: View {
 ///   (the mock never streams): `mac@0.40,0.30` (the Mac has the pointer, over the stream: its arrow
 ///   in every layout), `device@0.62,0.55` (this device's trackpad: its arrow in portrait only),
 ///   `hidden` (the Mac has it, off the stream: none) or `pencil@0.50,0.50` (this device's Pencil:
-///   none, unless `-SillPencilPointer 1`, Q2's flip, draws it in every layout). Ignored with
+///   none, unless `-SillPencilPointer 1`, Q2's flip, draws it in every layout), or `pen@0.50,0.50`
+///   (the Pencil hovering as a pen: its arrow in every layout). Ignored with
 ///   `-SillLive 1`, whose session shows the real thing.
 /// * `-SillInputScript '<t> <step>; …'` — with `-SillLive 1` only: input for the simulator gates,
 ///   which have no finger (`InputScript`): `t` is seconds since the session's first window list, and

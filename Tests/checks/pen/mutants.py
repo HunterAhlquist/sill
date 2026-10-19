@@ -10,7 +10,14 @@ FORCE = "guard maximum > 0, force.isFinite, maximum.isFinite else { return 0 }"
 LEAVE = "guard stroke == nil, !hovering, canHover, told else { return false }"
 UP = "            guard tipDown else { return [] }\n            tipDown = false\n            posts.append(.up(samples.first.map(Self.place),"
 MOVES = "        return !(checked.samples ?? []).isEmpty"
+CURSOR = "Sources/SillHost/CursorClass.swift"
 MUTANTS = [
+    # The Mac's cursor
+    ("no table: every cursor an app's own but CoreCursor's", CURSOR, "        if standards.contains(fingerprint) { return true }\n", ""),
+    ("any cursor with four images standard", CURSOR, "        return Double(widest) >= 9.5 * pointWidth", "        return true"),
+    ("three images enough", CURSOR, "bitmapWidths.count >= 4", "bitmapWidths.count >= 3"),
+    ("5× enough", CURSOR, ">= 9.5 * pointWidth", ">= 4.5 * pointWidth"),
+    ("no point size counts", CURSOR, "guard pointWidth > 0, bitmapWidths.count >= 4", "guard bitmapWidths.count >= 4"),
     # The pointer's settle
     ("every pen message moves the pointer", TABLET, MOVES, "        return true"),
     ("unchecked messages move the pointer", TABLET, "        guard let checked = input.checked() else { return false }",

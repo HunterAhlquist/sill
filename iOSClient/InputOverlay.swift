@@ -361,12 +361,13 @@ final class InputOverlayView: UIView, UIKeyInput {
     // them too, with readings of its own.
 
     /// A pen's hover at `p` (nil with no picture to place it in), with its angles, once
-    /// `PenStrokes.hover` has said it is one.
+    /// `PenStrokes.hover` has said it is one. The arrow shows where it hovers, in the Mac cursor's
+    /// shape (`.penHover`: a drawing app's brush outline), until the tip lands.
     private func pencilHover(_ p: (x: Double, y: Double)?, altitude: Double, azimuth: Double) {
         guard let p else { return }
         pen.send(PenStrokes.message(PenInput.hover, PenStrokes.Reading(x: p.x, y: p.y, pressure: nil, altitude: altitude, azimuth: azimuth,
                                                                       time: ProcessInfo.processInfo.systemUptime)))
-        setOwnPointer(CGPoint(x: p.x, y: p.y), .pencil)
+        setOwnPointer(CGPoint(x: p.x, y: p.y), .penHover)
     }
 
     /// The hover ended: the tip landed, or the Pencil left. Which, a moment later (`leaveCheck`).

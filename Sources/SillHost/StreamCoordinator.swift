@@ -416,9 +416,12 @@ package final class StreamCoordinator {
                 }
             }
         }
-        cursorShapes.onChange = { [weak self] blob in
-            self?.server.broadcast(StreamMessage(kind: .cursorShape, timestamp: Date().timeIntervalSince1970,
-                                                 isKeyframe: false, payload: blob))
+        cursorShapes.onChange = { [weak self] blob, standard in
+            // Whether it is a standard cursor goes first (kind 30), so a device applies both together.
+            let now = Date().timeIntervalSince1970
+            self?.server.broadcast(StreamMessage(kind: .cursorKind, timestamp: now, isKeyframe: false,
+                                                 payload: Wire.encode(CursorKind(standard: standard))))
+            self?.server.broadcast(StreamMessage(kind: .cursorShape, timestamp: now, isKeyframe: false, payload: blob))
         }
         catalog.onInstalledAppsReady = { [weak self] apps in
             guard let self else { return }
@@ -2300,6 +2303,8 @@ package final class StreamCoordinator {
         server.send(StreamMessage(kind: .appList, timestamp: now, isKeyframe: false,
                                   payload: Wire.encode(catalog.installedApps)), to: connection)
         if let shape = cursorShapes.current {
+            server.send(StreamMessage(kind: .cursorKind, timestamp: now, isKeyframe: false,
+                                      payload: Wire.encode(CursorKind(standard: cursorShapes.currentIsStandard))), to: connection)
             server.send(StreamMessage(kind: .cursorShape, timestamp: now, isKeyframe: false, payload: shape), to: connection)
         }
     }

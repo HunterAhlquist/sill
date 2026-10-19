@@ -163,7 +163,12 @@ check(!json(list).contains("gestures"), "a list without them leaves the key out:
 check(decodedOld != nil && decodedOld?.gestures == nil, "an older host's list decodes, gestures nil")
 check(Wire.decode(WindowList.self, from: Wire.encode(takes))?.gestures == 1, "gestures round-trips")
 check(StreamMessageKind.gesture.rawValue == 28 && StreamMessageKind(rawValue: 28) == .gesture, "kind 28 is gesture")
-check(StreamMessageKind(rawValue: 27) == .fetchMenu && StreamMessageKind(rawValue: 30) == nil, "27 is the menus' fetch, 30 not this build's")
+check(StreamMessageKind(rawValue: 27) == .fetchMenu && StreamMessageKind(rawValue: 31) == nil, "27 is the menus' fetch, 31 not this build's")
+// Kind 30, CursorKind: whether the cursor of the kind 14 after it is a standard one (Viewport.swift).
+check(StreamMessageKind.cursorKind.rawValue == 30 && StreamMessageKind(rawValue: 30) == .cursorKind, "kind 30 is cursorKind")
+check(String(decoding: Wire.encode(CursorKind(standard: false)), as: UTF8.self) == #"{"standard":false}"#, "an app's own cursor: {\"standard\":false}")
+check(Wire.decode(CursorKind.self, from: Data(#"{"standard":true,"later":1}"#.utf8)) == CursorKind(standard: true), "a later field is skipped")
+check(Wire.decode(CursorKind.self, from: Data("{}".utf8)) == CursorKind(standard: nil), "an empty one decodes, standard nil")
 let gestureMessage = StreamMessage(kind: .gesture, timestamp: 1, isKeyframe: false, payload: Wire.encode(gesture)).serialized()
 check(StreamMessage.parseHeader(gestureMessage)?.kind == .gesture, "the gesture's header parses")
 check(gestureMessage.count == StreamMessage.headerLength + Wire.encode(gesture).count, "one header, then the JSON")

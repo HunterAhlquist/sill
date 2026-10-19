@@ -324,7 +324,7 @@ built with that profile, never in the CLI or a development build. That is its ow
 
 | | Question | Default taken |
 |---|---|---|
-| Q1 | **The owner's call.** While drawing, a Mac app's brush cursor is the Mac's cursor, which Sill leaves out of the video, and the device's own arrow is hidden for the Pencil (the pointer plan's Q2, decided). So a hovering Pencil previews no brush. Flip `PointerPresence.pencilShowsPointer` to true while the Pencil hovers in pen mode? | Unchanged: no arrow. Recommended: show it while hovering in pen mode, after P5 is tried without it |
+| Q1 | **Decided by the owner (2026-10-14): shown while hovering.** While drawing, a Mac app's brush cursor is the Mac's cursor, which Sill leaves out of the video, and the device's own arrow was hidden for the Pencil (the pointer plan's Q2). So a hovering Pencil previewed no brush | The arrow shows while a Pencil hovers as a pen over an app's own cursor (a brush outline), never over a standard one, and hides as the tip lands (§13, "The cursor while hovering" and "Only an app's own cursor"); the mouse-mode Pencil keeps Q2 |
 | Q2 | The device switch | Yes, on by default (§2.8) |
 | Q3 | The pressure floor of 0.01 while the tip is down | Yes; P0 says whether any app needs it |
 | Q4 | Space a batch's samples in time (set each event's timestamp from `t`, or post them `t` apart)? | Back to back. Revisit if P4 shows uneven strokes |
@@ -711,3 +711,70 @@ and the three cases that survived were added); `Tests/checks/run-all.sh`, all 41
 plain move, its own down at 0.300 while the button is held, a drag, kind 8's up, the pen dragging
 on at 0.700 and its own up; a tap while it hovered (plain click events, no leave); the pen
 hovering 4.2 s with no message and staying in range until its leave.
+
+### The cursor while hovering (2026-10-14, Q1)
+
+The owner, drawing in Affinity: hover works, but nothing on the iPad shows where the Pencil is,
+while the Mac's own screen shows the cursor. Decided: show it.
+
+`PointerPresence.Origin.penHover` (pure): while this device's Pencil hovers as a pen (kind 29) the
+sprite shows where it hovers, in every layout, in the Mac cursor's shape (kind 14), so a drawing
+app's brush outline is under the Pencil when the app makes it its cursor (one that draws the outline
+into the canvas already shows it in the video). The tip landing sets `.pencil` again, hidden as Q2
+decided (no arrow under the tip while it draws), until the next hover. After the Pencil leaves range
+the arrow stays where it last hovered, as a pointer at rest does, until other input moves it. A new
+frame size does not move a hovering Pencil's pointer to the middle (`recentresOnNewFrame`): its next
+hover says where it is. The mouse-mode Pencil (the switch off, an older Mac) is unchanged: hidden.
+The Mac's own screen always shows its cursor: it is the one pointer, and Sidecar's is the same.
+
+Verified: `pointer-presence` 183 checks (new: the hover shown in both layouts with and without Q2's
+flip, hidden again as the tip lands, the Mac's arrow once it moves it, no re-centring) and 46 of
+46 mutants caught (three new); the iOS app for the simulator and for the owner's iPad, installed. DEBUG:
+`-SillPointer pen@X,Y`.
+
+On the owner's iPad through Sill (2026-10-14, `PenProbe --canvas`, device ID 20753 = 0x5111,
+Sill's): three strokes, every drag a tablet point, pressure finer than 8 bits (0.015…1.000), tilt x
+0.36…0.51 for the owner's natural grip, the sign Sidecar gave the same grip (0.39…0.69 in the
+recording); an enter before each stroke and a leave after, and an enter and leave for a hover alone.
+
+### Only an app's own cursor (2026-10-14, Q1 refined)
+
+The owner, with the hover cursor on: Affinity's brush outline shows under the Pencil, but the arrow
+should stay hidden in ordinary apps, as Noah first decided (the pointer plan's Q2). So the Mac now
+says whether its cursor is one of macOS's standard ones.
+
+Measured first (`NSCursor.currentSystem` polled while the owner visited cursors with the Mac's
+trackpad; scratch probes, posting nothing): the window server's arrow (28×40) and I-beam (23×22)
+carry 1×, 2×, 5× and 10× images, but its pointing hand, resize and other standard cursors only 1×
+and 2×, so the number of images alone cannot tell; compared pixel for pixel with AppKit's own
+standard cursors in the same process (a Hasher differs between processes), the arrow, the I-beam,
+the pointing hand and two window-edge resize cursors matched, and Affinity's brush outline (68×68,
+one 1× image) and another app's tool cursor (25×25) matched none. AppKit's arrow and I-beam have no
+image in a process without an NSApplication (the CLI), so the 1×–10× images stand in for those two.
+
+- Wire (additive): kind 30 `cursorKind`, host → device, JSON `CursorKind {standard}`
+  (Viewport.swift), sent just before each kind 14 (and before the current shape to a device that
+  connects). Older devices skip it. A device that gets a kind 14 with no kind 30 before it takes
+  that cursor as standard.
+- Host: `CursorClass.isStandard` (pure): its fingerprint one of AppKit's standard cursors' (the
+  arrow, I-beams, hands, crosshair, the resize, column, row, zoom and frame-resize cursors, the drag
+  and contextual-menu ones), or four images or more with the widest 10× its width; anything else
+  an app's own. `CursorShapeWatcher` classifies each new shape with the fingerprint it makes anyway.
+- Device: StreamClient keeps a kind 30 until the kind 14 it comes before and applies both together;
+  `PointerPresence.cursorIsAppOwn` (false until a kind 30 says otherwise); `.penHover` shows only
+  while it is true. The Mac's arrow and the trackpad's are unchanged.
+- Known: a Mac whose pointer size or colours are changed in Accessibility may draw its standard
+  cursors differently from AppKit's copies; such a cursor reads as an app's own, and the hover then
+  shows it, as before this change.
+
+Verified: `pen` 207 checks (the rule's cases: a table match, Affinity's outline, a 2× tool cursor,
+the CLI's arrow and I-beam by their images, three images with and without a 10× one, an 8× widest,
+no size, no images) and 97 of 97 mutants (the first run caught 96: the three-image case with a 10×
+image was added);
+`pointer-presence` 190 (hidden over a standard cursor and without a kind 30, shown over an app's
+own, in both layouts with and without Q2's flip); `compatibility` 151 (kind 30, its JSON, a later
+field skipped, an empty one), and `protocol`, `menus` and `pointer-control` with 30 taken and 31
+the first unknown kind (their mutants that renumbered a kind onto 30 or 31 moved to 31 and 32);
+every mutant of the six checks caught (`pointer-presence` 48, `compatibility` 40, `menus` 43,
+`pointer-control` 33, `protocol` 23); `swift build -c release`; the iOS app for the simulator and
+the owner's iPad, installed; a `--synthetic` host sends one kind 30 with its kind 14.

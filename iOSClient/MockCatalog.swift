@@ -108,7 +108,7 @@ enum MockCatalog {
     /// display view is told of since no parameter sets ever arrive; `pencilPointer` is Q2's flip.
     private static func seedPointer(_ client: StreamClient, _ state: String, pencilPointer: Bool) {
         guard client.debugSeedPointer(state, pencilShows: pencilPointer) else {
-            print("-SillPointer \(state): not a state (mac@X,Y, device@X,Y, hidden or pencil@X,Y)")
+            print("-SillPointer \(state): not a state (mac@X,Y, device@X,Y, hidden, pencil@X,Y or pen@X,Y)")
             return
         }
         client.displayView.debugFrameSize(client.videoSize)

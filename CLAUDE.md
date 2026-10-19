@@ -60,7 +60,10 @@ and hovers as the mouse). Additive: a Mac or a device from before gets the mouse
   Pencil still the mouse elsewhere, a fast scribble, hover, a resting palm, a stroke cut by a
   rotation, a pick or Wi-Fi, mixed builds against Sill for Mac 0.5.1 and TestFlight's iPad build,
   and the switch. Known gap: a palm resting 0.45 s before the tip first lands is a right click.
-  Q1 (a brush preview while hovering) is the owner's call. The README, the site's intro and the App
+  Q1, decided by Hunter: while a Pencil hovers as a pen, the device's arrow shows in the Mac
+  cursor's shape only when that cursor is an app's own, a drawing app's brush outline (kind 30,
+  `CursorKind`, from the host's `CursorClass`), never over a standard arrow, I-beam or hand, and it
+  hides as the tip lands (`PointerPresence.Origin.penHover`, `cursorIsAppOwn`). The README, the site's intro and the App
   Store's Pencil bullet change only after P1–P4 pass; site/privacy.html has the Pencil's lines
   now, its date set the day the site goes out.
 
@@ -4488,7 +4491,10 @@ good.
   host: an Apple Pencil on the stream as a pen, one phase of a stroke with its
   samples' position, pressure and tilt; `checked()`, what a host acts on),
   sent only to a host whose `WindowList.pencil` is 1 or more
-  (docs/pencil-pressure-plan.md).
+  (docs/pencil-pressure-plan.md). `Viewport.swift`'s `CursorKind` (kind 30,
+  host → device, just before each kind 14: whether that cursor is one of
+  macOS's standard ones or an app's own, which a hovering Pencil's pointer
+  shows over).
 - `Sources/SillHost/` — the `SillHostCore` library. `StreamCoordinator` (main
   actor; owns the pipeline, switches sources on client request, raises the
   picked window in regular mode (never on the virtual display), applies
@@ -4532,7 +4538,9 @@ good.
   the stream's size, one frame at a time like a stream, the rate it keeps and
   the rate a return needs), `EncoderSelfTest`
   (`--encoder-selftest`), `CursorShapeWatcher` (NSCursor.currentSystem →
-  `.cursorShape`), `StreamServer` (Network.framework + Bonjour `_sill._tcp`, both
+  `.cursorShape`, with `.cursorKind` before it), `CursorClass` (whether a cursor is
+  one of macOS's standard ones: its fingerprint AppKit's, or the window server's
+  1×–10× images; pure, `Tests/checks/pen`), `StreamServer` (Network.framework + Bonjour `_sill._tcp`, both
   directions, keepalive, dead-client eviction, ping echo, client-stats print;
   a remote client's frames paced by the bytes its connection has not taken
   (`paceRemote`, docs/remote-bundle-plan.md §3); one sweep a second closing
@@ -5381,7 +5389,7 @@ line its ask's answer sets; under `-SillLive 1` it opens over the live session
 and asks), pairing at home's connect cases `homerows|homeasking|homecard|homecode|
 homecodeerror|homelocked|homeopenonmac|homerevoked|homecabledone|homeolder|
 pairingrequired` and settings cases `paired|pairedoff|openpair`,
-`-SillPointer mac@X,Y|device@X,Y|hidden|pencil@X,Y` (the pointer sprite in one
+`-SillPointer mac@X,Y|device@X,Y|hidden|pencil@X,Y|pen@X,Y` (the pointer sprite in one
 of docs/pointer-visibility-plan.md's states over the mock's frame, which it
 draws as a dim rectangle; `-SillPencilPointer 1` is Q2's flip), and in
 the normal app and under `-SillLive 1` `-SillPairURL '<sill://pair…>'` (pair
@@ -5498,7 +5506,7 @@ device keeps working with Macs from the first public build on, or each says why
   the plain-TCP `_sill._tcp` door, which only development builds and the CLI without `--pairing`
   keep; the ALPNs `sill/1` and `sill-pair/1`, which every host offers for good at both doors
   (`RemoteTLS.serverALPNs`: a later generation's `sill/2` only ever goes beside them); the 14-byte
-  header; kinds 0–29 and their payloads (HEVC with ParameterSets; the JSON of Switcher, Input,
+  header; kinds 0–30 and their payloads (HEVC with ParameterSets; the JSON of Switcher, Input,
   Viewport, HostSettings, Remote, Compatibility, Pointer, MacMenu, Gesture and Pen), inside `sill/1` at
   both doors (19 and 20 on their own `sill-pair/1` connection, the next bullet); the ping echo; a
   kind 16 within 2 s of the first window list, one per connection since Sill for Mac 0.5.1 (away
@@ -5524,7 +5532,8 @@ device keeps working with Macs from the first public build on, or each says why
   or more, as the phases `hover`, `down`, `move`, `up`, `cancel` and `leave` with at most 32 samples
   (`PenInput.checked()` is what a host acts on), and a later generation says 2; kind 26's `seen`
   counts every input message the host read on that connection, kinds 8 and 29 (SessionLink's
-  `inputsOnSession` counts the same on the device).
+  `inputsOnSession` counts the same on the device); kind 30 (CursorKind, `standard`) goes just
+  before the kind 14 it describes, and a device that gets none takes the cursor as standard.
 - Pairing as 1.0 does it (docs/home-pairing-plan.md §3): the Bonjour TXT keys `r` (the recognition
   tag) and `p` ("1" pairing required, "0" open, no `p` a plain door, any other value read as "1");
   a `sill-pair/1` connection is exactly one kind 19, with no hello (the device gate judges sessions
