@@ -2,7 +2,7 @@ import Foundation
 import StreamProtocol
 
 /// The device's rules for an Apple Pencil as a pen (docs/pencil-pressure-plan.md §5.1): whether a
-/// stroke goes to the Mac as a pen's (kind 29) or as the mouse's (kind 8), what each reading of the
+/// stroke goes to the Mac as a pen's (kind 45) or as the mouse's (kind 8), what each reading of the
 /// Pencil becomes on the wire, when the Mac is told the Pencil left, and which finger touches say
 /// nothing while it draws (a resting palm). Pure: the stream's overlay feeds it its touch and hover
 /// callbacks and sends what it says (InputOverlay.swift).
@@ -102,7 +102,7 @@ struct PenStrokes: Equatable {
 
     /// What becomes of a hover callback.
     enum Hover: Equatable {
-        /// A pen's hover (kind 29).
+        /// A pen's hover (kind 45).
         case pen
         /// A pointer move (kind 8): the mouse's, or the iPad's own trackpad or mouse pointer.
         case mouse

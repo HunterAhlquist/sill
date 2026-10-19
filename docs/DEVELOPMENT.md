@@ -552,7 +552,7 @@ An Apple Pencil on the stream draws in a Mac app as a drawing tablet's pen does
 tilted Pencil shades, in apps that read pressure and tilt from macOS's tablet
 events (`NSEvent.pressure` and `tilt`). An app that talks to a tablet driver of
 its own may not. Everywhere else the Pencil is the mouse, as it always was: it
-clicks, drags, selects and hovers. The device sends each stroke as kind 29, every
+clicks, drags, selects and hovers. The device sends each stroke as kind 45, every
 reading the Pencil gives (up to 240 a second), and the Mac posts the mouse
 events it would post anyway with the tablet fields on them, and tells apps the
 pen came into range before its first point and left after its last. On an
@@ -879,7 +879,7 @@ python3 Scripts/sillclient.py PORT 3 desktop --input='{"key":{"hidUsage":44,"dow
 (`$T/path` holds one line, `0 756 474`: the scripted pointer gives the test
 pattern a place for input to land.) `--gesture=NAME[,FINGERS]@T` sends a
 trackpad gesture (kind 28), and `--pen=PHASE[,X,Y[,P[,ALT,AZ]]]@T` (or
-`--raw29=JSON@T`) an Apple Pencil's message (kind 29), both, like the input
+`--raw45=JSON@T`) an Apple Pencil's message (kind 45), both, like the input
 flags, only to a `--synthetic` host on this Mac, which posts nothing:
 
 ```

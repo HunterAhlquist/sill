@@ -234,7 +234,7 @@ final class InputInjector {
     /// Waits out the pen's last message, then lets it leave (`PenTablet.idleLeave`).
     private var penIdle: Task<Void, Never>?
 
-    /// One device's pen message (kind 29), already `checked()`. `rect` as for `apply`: `.null` for
+    /// One device's pen message (kind 45), already `checked()`. `rect` as for `apply`: `.null` for
     /// one with nowhere to land that still goes (`penStillGoes`).
     func pen(_ input: PenInput, in rect: CGRect, from device: KeyStrokes.Device) {
         if !dryRun { remindAboutAccessibilityIfNeeded() }

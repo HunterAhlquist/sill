@@ -1,6 +1,6 @@
 import Foundation
 
-// Apple Pencil pressure and tilt (docs/pencil-pressure-plan.md §3): kind 29. The rules of
+// Apple Pencil pressure and tilt (docs/pencil-pressure-plan.md §3): kind 45. The rules of
 // HostSettings.swift apply (JSON only; no enums on the wire, strings instead; fields added later
 // are optional; never rename or retype a field). Later Pencil features (barrel roll, hover
 // distance, an eraser) are optional fields of a sample or new phases, which a host that does not
@@ -8,12 +8,12 @@ import Foundation
 //
 // Pure: Foundation only, so it is checked on its own with swiftc.
 
-/// Device → host (kind 29): an Apple Pencil on the stream, as a pen rather than a mouse. One message
+/// Device → host (kind 45): an Apple Pencil on the stream, as a pen rather than a mouse. One message
 /// is one phase of a stroke with its samples: the Mac posts each as the mouse event it would post
 /// for kind 8 (a move, the left button down, a drag, the button up) carrying a tablet pen's pressure
 /// and tilt. A device sends it only to a host whose window list says `pencil` 1 or more
 /// (`WindowList.pencil`); every other host gets the Pencil as kind 8, as before. A host from before
-/// maps kind 29 to `.unknown` and skips it.
+/// maps kind 45 to `.unknown` and skips it.
 ///
 /// `{"phase":"move","samples":[{"alt":1.05,"az":0.3,"p":0.42,"t":4.2,"x":0.51234,"y":0.4},…]}`,
 /// `{"phase":"leave"}`.
@@ -47,7 +47,7 @@ public struct PenInput: Codable, Equatable, Sendable {
     /// The most samples one message may carry: a host skips a message with more.
     public static let maxSamples = 32
 
-    /// `WindowList.pencil` from a host that takes kind 29's six phases.
+    /// `WindowList.pencil` from a host that takes kind 45's six phases.
     public static let generation = 1
 
     /// The message as a host acts on it, or nil for one it skips: a phase it does not know, more

@@ -14,7 +14,7 @@ docs/pencil-pressure-plan.md).** Hunter: Apple Pencil pressure and tilt should r
 where the Pencil was only a mouse. A Pencil on the stream now draws as a tablet pen in a Mac app
 that reads `NSEvent`'s pressure and tilt; everything else about it is as it was (it clicks, drags
 and hovers as the mouse). Additive: a Mac or a device from before gets the mouse, as before.
-- Wire (`Pen.swift`): kind 29 `pen`, device → host, `PenInput {phase, samples}` (the phases
+- Wire (`Pen.swift`): kind 45 `pen`, device → host, `PenInput {phase, samples}` (the phases
   `hover`, `down`, `move`, `up`, `cancel`, `leave`; at most 32 samples, each `x`, `y` as frame
   fractions, `p` 0…1, `alt` and `az` the Pencil's angles, `t` ms before the message's last), sent
   only to a host whose window list says `pencil` 1 (`PenInput.generation`). `checked()` is what a
@@ -40,7 +40,7 @@ and hovers as the mouse). Additive: a Mac or a device from before gets the mouse
   within 0.5 s of it lifting, says nothing, on the stream and the portrait trackpad (never the
   pad's press-and-hold drag). Settings › This iPad (an iPad only): Pencil Pressure
   (`Sill.pencilPressure`, on by default, never sent), with "Update Sill on ‹Mac› to use this." for
-  a Mac without `pencil`. `SessionLink` counts kind 29 as input.
+  a Mac without `pencil`. `SessionLink` counts kind 45 as input.
 - Found on Hunter's iPad and fixed (the plan's "The line back to the start"): every stroke ended
   with a straight line back to where it began, in main's build too. As the tip lifts iPadOS sends
   one more hover update, carrying where the Pencil hovered before it landed, and `handleHover`
@@ -48,10 +48,10 @@ and hovers as the mouse). Additive: a Mac or a device from before gets the mouse
   nowhere (`PenStrokes.hover`). Confirmed on the iPad, in Affinity.
 - Tools: `SillHost --pen-selftest` (H0: what AppKit reads from the events, nothing posted),
   `PenProbe` (`--canvas`; `--post-to-this-mac` posts test strokes, the owner's to run),
-  `sillclient.py --pen` and `--raw29`, `-SillInputScript`'s `pen` steps, `SILL_TEST_INPUT_LOG`'s pen
+  `sillclient.py --pen` and `--raw45`, `-SillInputScript`'s `pen` steps, `SILL_TEST_INPUT_LOG`'s pen
   lines.
 - Verified (the plan's §13): H0 37 of 37; `pen` 215 checks and 5,000 random sessions, 90 of 90
-  mutants; `compatibility` 147 and 38 of 38; `fence`'s 17 modes with kind 29; `Tests/checks/run-all.sh`,
+  mutants; `compatibility` 147 and 38 of 38; `fence`'s 17 modes with kind 45; `Tests/checks/run-all.sh`,
   all 41; the CLI's output against main's, identical; dry runs end to end on a synthetic host and
   in a simulator, against this host and main's (the mouse); P0's canvas (the window server delivers
   the events whole); the Settings row's photos; the builds, only the known warnings.
@@ -4989,7 +4989,7 @@ good.
   while macOS allows every read (`MacAccess`); the device's subscription,
   which text from the Mac it writes, a Paste's receipt, the chip and its time,
   every word; pure, `Tests/checks/clipboard`). `Pen.swift` — `PenInput` and
-  `PenSample` (kind 29, device → host: an Apple Pencil on the stream as a pen,
+  `PenSample` (kind 45, device → host: an Apple Pencil on the stream as a pen,
   one phase of a stroke with its samples' position, pressure and tilt;
   `checked()`, what a host acts on), sent only to a host whose
   `WindowList.pencil` is 1 or more (docs/pencil-pressure-plan.md).
@@ -5159,7 +5159,7 @@ good.
   state table's flags from before it (`KeyStrokes.chord`;
   `in.gestureModifiersLeft` if some stay).
   The Apple Pencil as a pen (docs/pencil-pressure-plan.md §4): `PenTablet`
-  (kind 29's messages as what the Mac posts: the pen entering range before its
+  (kind 45's messages as what the Mac posts: the pen entering range before its
   first point and leaving at a device's leave, 1 s after an up with no hover
   since, the device leaving and the host's end, never for mouse input;
   the tip as the left button, its own (InputInjector's `penButton`, apart
@@ -5171,7 +5171,7 @@ good.
   pressure in the tablet point alone, and the proximity event; building only).
   `InputInjector.pen` posts what PenTablet says through its pointer path
   (`in.pen`, `in.penProximity`), so the dry run is kind 8's and the click
-  count works as kind 8's, on the pen's own button; StreamServer counts kind 29 as input (the ticks, kind 26's
+  count works as kind 8's, on the pen's own button; StreamServer counts kind 45 as input (the ticks, kind 26's
   `seen`, the pointer's hand-over); the coordinator puts it through kind 8's
   rules as the pointer event it amounts to and holds it in order with the
   input around it (`Held.pen`); the window list says `pencil` 1.
@@ -5285,7 +5285,7 @@ good.
   `--synthetic` host on this Mac (lsof and ps); trackpad gestures with
   `--gesture=NAME[,FINGERS]@T` and `--raw28=JSON@T` (kind 28), likewise only to
   a `--synthetic` host on this Mac; the Apple Pencil with
-  `--pen=PHASE[,X,Y[,P[,ALT,AZ]]]@T` and `--raw29=JSON@T` (kind 29), likewise;
+  `--pen=PHASE[,X,Y[,P[,ALT,AZ]]]@T` and `--raw45=JSON@T` (kind 45), likewise;
   the Mac's menus with
   `--menus` (the subscription; each kind 24 on one line),
   `--fetch=ID[xN][,TITLE]@T` (the title the menu was shown under, by default
@@ -5531,7 +5531,7 @@ good.
   AD64/FD64); StreamScreen places the chip, the Settings panel's This iPad
   group has Share Clipboard and Paste on ‹Mac›. The Apple Pencil as a pen
   (docs/pencil-pressure-plan.md §5): `PenStrokes` (whether a stroke goes to the
-  Mac as a pen's, kind 29, or the mouse's, kind 8, fixed as the tip lands: this
+  Mac as a pen's, kind 45, or the mouse's, kind 8, fixed as the tip lands: this
   device's switch `Sill.pencilPressure` and the Mac's `pencil`; a touch's force
   and angles as the wire's samples, every reading of a callback in messages of
   32 at most; the leave, only when a Pencil that can hover is neither touching
@@ -5545,7 +5545,7 @@ good.
   the portrait trackpad under the picture, where the hand rests); a palm's
   taps, long presses, scrolls and gestures are dropped on both surfaces (never
   the trackpad's press-and-hold drag, whose button must come up).
-  `SessionLink` counts kind 29 as input, as the Mac does. The
+  `SessionLink` counts kind 45 as input, as the Mac does. The
   first-run tour: `TourPolicy` (its steps and targets per layout, the halves,
   a phone's rows and sideways; when it shows by itself, what it remembers,
   what a session decided and the reconnect's, a rotation mid-run, the crease,
@@ -5704,7 +5704,7 @@ SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_POINTER_PATH=$T/path
 python3 Scripts/sillclient.py PORT 6 desktop --pointer --move=0.25,0.25@3   # each kind 26 as it arrives; input goes only to a --synthetic host
 SILL_TEST_INPUT_LOG=1 SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_POINTER_PATH=$T/path .build/release/SillHost --synthetic   # prints each event a dry run would post ("Test input: key 49 up (none)")
 python3 Scripts/sillclient.py PORT 3 desktop --input='{"key":{"hidUsage":44,"down":true,"modifiers":1048576}}@1' --input='{"key":{"hidUsage":44,"down":false,"modifiers":1048576}}@1.05' --tap=0.5,0.5@1.5   # an older device's Spotlight key, then a tap
-python3 Scripts/sillclient.py PORT 5 desktop --pen=hover,0.3,0.5@1.5 --pen=down,0.3,0.5,0.2@2 --pen=move,0.4,0.5,0.8,1.0,0@2.2 --pen=up,0.4,0.5@2.4 --pen=leave@2.6   # an Apple Pencil's stroke (kind 29) to that host: the input log lists the pen entering, each point's pressure and tilt, the pen leaving
+python3 Scripts/sillclient.py PORT 5 desktop --pen=hover,0.3,0.5@1.5 --pen=down,0.3,0.5,0.2@2 --pen=move,0.4,0.5,0.8,1.0,0@2.2 --pen=up,0.4,0.5@2.4 --pen=leave@2.6   # an Apple Pencil's stroke (kind 45) to that host: the input log lists the pen entering, each point's pressure and tilt, the pen leaving
 python3 Scripts/sillclient.py PORT 8 none --gesture=swipeUp@3 --gesture=swipeDown@4   # a synthetic host logs "Gesture from …: swipe up → Mission Control (shortcut 108: key 160, fn) (not posted: a test host)"
 SILL_TEST_LOOPBACK=1 SILL_TEST_HOTKEYS='108=off,173=off' .build/release/SillHost --synthetic   # TEST ONLY: the gestures read this table (over macOS 27's own; `defaults` alone) instead of this Mac's shortcuts
 swift run -c release SillHost --no-clipboard  # share nothing of the clipboard with devices (on by default, as in Sill.app)
@@ -5826,7 +5826,7 @@ in the HID state table, a button's with where it goes ("Test input: left mouse
 down (none) at 756,474"), and each check a key's up arms ("Test input: key 55
 up: the table read again in 0.25 s for command"): what a device's keys and
 buttons leave for its next click (KeyStrokes), without posting anything. An
-Apple Pencil's messages (kind 29) print the same way: "Test input: pen enters",
+Apple Pencil's messages (kind 45) print the same way: "Test input: pen enters",
 a point with its pressure and tilt ("Test input: left mouse drag (none) at
 484,475 pen 0.400 tilt 0.54,0.00"), "Test input: pen leaves" (it needs the
 scripted pointer, SILL_TEST_POINTER_PATH, as all input to the test pattern
@@ -6033,7 +6033,7 @@ key row, `gesture NAME[,FINGERS]` a three-finger gesture through
 scroll with its coast, `wheel DX,DY` a wheel's plain deltas, `keyboard
 attach|detach` a hardware keyboard coming or going, `orient landscape|portrait`
 the scene turned (an iPhone's), `pen hover|down|move|up,X,Y[,P[,ALT,AZ]]` and `pen
-away` an Apple Pencil over the stream, as a pen's (kind 29) or, with
+away` an Apple Pencil over the stream, as a pen's (kind 45) or, with
 `-Sill.pencilPressure 0` or a Mac that takes no pen, the mouse's; the console's "input script: …" and "pointer: …" lines say what
 happened; it runs only when the session was dialled by `-SillConnect` to a
 loopback address, `127.0.0.1:P`, `::1:P` or `localhost:P`, and the host's first
@@ -6119,9 +6119,9 @@ device keeps working with Macs from the first public build on, or each says why
   the plain-TCP `_sill._tcp` door, which only development builds and the CLI without `--pairing`
   keep; the ALPNs `sill/1` and `sill-pair/1`, which every host offers for good at both doors
   (`RemoteTLS.serverALPNs`: a later generation's `sill/2` only ever goes beside them); the 14-byte
-  header; kinds 0–29 and 32 and their payloads (HEVC with ParameterSets; the JSON of Switcher,
+  header; kinds 0–28, 32 and 45 and their payloads (HEVC with ParameterSets; the JSON of Switcher,
   Input, Viewport, HostSettings, Remote, Compatibility, Pointer, MacMenu, Gesture, Clipboard and
-  Pen; 30 and 31 stay free, pull request #66's), inside `sill/1` at
+  Pen; 29 to 31 stay free, 29 the audio plan's, 30 and 31 pull request #66's), inside `sill/1` at
   both doors (19 and 20 on their own `sill-pair/1` connection, the next bullet); the ping echo; a
   kind 16 within 2 s of the first window list, one per connection since Sill for Mac 0.5.1 (away
   from home, docs/remote-bundle-plan.md §4): its `settings` the pair that connection's controls
@@ -6150,10 +6150,10 @@ device keeps working with Macs from the first public build on, or each says why
   the device takes, `{}` being text alone, so a host sends `image` only to a connection whose
   subscription carries a later field saying it takes images (`"accepts":2`, say), never to one that
   sent `{}`; an
-  Apple Pencil as a pen (kind 29, Pen.swift) goes only to a host whose window list says `pencil` 1
+  Apple Pencil as a pen (kind 45, Pen.swift) goes only to a host whose window list says `pencil` 1
   or more, as the phases `hover`, `down`, `move`, `up`, `cancel` and `leave` with at most 32 samples
   (`PenInput.checked()` is what a host acts on), and a later generation says 2; kind 26's `seen`
-  counts every input message the host read on that connection, kinds 8 and 29 (SessionLink's
+  counts every input message the host read on that connection, kinds 8 and 45 (SessionLink's
   `inputsOnSession` counts the same on the device).
 - Pairing as 1.0 does it (docs/home-pairing-plan.md §3): the Bonjour TXT keys `r` (the recognition
   tag) and `p` ("1" pairing required, "0" open, no `p` a plain door, any other value read as "1");

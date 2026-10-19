@@ -652,7 +652,7 @@ struct LayoutHarness: View {
 /// * `pen hover|down|move|up,X,Y[,P[,ALT,AZ]]` and `pen away` — an Apple Pencil over the stream at
 ///   that fraction of the frame, with a pressure (0…1) and its altitude and azimuth in radians,
 ///   through the overlay's own Pencil path under its touch callbacks (docs/pencil-pressure-plan.md
-///   §5.2): as a pen's (kind 29) or, with the switch off or a Mac that takes no pen, as the mouse
+///   §5.2): as a pen's (kind 45) or, with the switch off or a Mac that takes no pen, as the mouse
 ///   events those callbacks send; `away` ends its hover. The console says which ("input script:
 ///   t=… pen down,0.3,0.5,0.2: a pen's").
 /// The pad and the overlay register themselves as they join a window, and each step calls their

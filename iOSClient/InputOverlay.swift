@@ -6,7 +6,7 @@ import StreamProtocol
 
 /// What the stream's surfaces need of the client for an Apple Pencil (`StreamClient.penLink`).
 struct PenLink {
-    /// Whether a stroke that begins now goes to the Mac as a pen's (kind 29): the switch, and the Mac.
+    /// Whether a stroke that begins now goes to the Mac as a pen's (kind 45): the switch, and the Mac.
     var asPen: () -> Bool = { false }
     /// One Pencil message (`StreamClient.sendPen`).
     var send: (PenInput) -> Void = { _ in }
@@ -80,7 +80,7 @@ final class InputOverlayView: UIView, UIKeyInput, UIGestureRecognizerDelegate {
     /// line).
     private let strokes = StrokeObserver()
     /// The Pencil as a pen (docs/pencil-pressure-plan.md §5.2): the client's side of it, and this
-    /// view's stroke and hover (PenStrokes), which say what goes to the Mac as kind 29.
+    /// view's stroke and hover (PenStrokes), which say what goes to the Mac as kind 45.
     var pen = PenLink()
     private var penStrokes = PenStrokes()
     /// A finger stroke that says nothing because the Pencil's tip is, or just was, on the glass: a
@@ -506,7 +506,7 @@ final class InputOverlayView: UIView, UIKeyInput, UIGestureRecognizerDelegate {
             case .ignore:
                 return   // stale: the Pencil's tip is on the glass (PenStrokes.hover)
             case .pen:
-                // As a pen (kind 29): the hover with the Pencil's angles, so the Mac's app sees a pen
+                // As a pen (kind 45): the hover with the Pencil's angles, so the Mac's app sees a pen
                 // in range, leaning as it leans.
                 pencilHover(normalized(gesture.location(in: self), clamped: true),
                             altitude: Double(gesture.altitudeAngle), azimuth: Double(gesture.azimuthAngle(in: self)))
@@ -526,7 +526,7 @@ final class InputOverlayView: UIView, UIKeyInput, UIGestureRecognizerDelegate {
     // MARK: - The Pencil as a pen
     //
     // What the touch and hover callbacks below do with a Pencil in pen mode, apart from reading the
-    // touch: each returns true when it took the event as a pen's (kind 29), and false when the
+    // touch: each returns true when it took the event as a pen's (kind 45), and false when the
     // stroke is the mouse's and the callback goes on as before. DEBUG's `-SillInputScript` calls
     // them too, with readings of its own.
 

@@ -1376,7 +1376,7 @@ final class StreamServer {
                 return
             }
             let deliver = { (payload: Data) in
-                // An Apple Pencil's message (kind 29) is input as kind 8 is: the ticks, the count
+                // An Apple Pencil's message (kind 45) is input as kind 8 is: the ticks, the count
                 // kind 26's `seen` carries (the device counts both, SessionLink) and the pointer.
                 if header.kind == .input || header.kind == .pen {
                     self.lastInputAt = Date().timeIntervalSince1970

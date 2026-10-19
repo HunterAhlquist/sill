@@ -3363,14 +3363,14 @@ final class StreamClient: ObservableObject {
         return defaults.object(forKey: pencilKey) == nil || defaults.bool(forKey: pencilKey)
     }
 
-    /// Whether a Pencil's next stroke goes to the Mac as a pen's (kind 29) rather than the mouse's
+    /// Whether a Pencil's next stroke goes to the Mac as a pen's (kind 45) rather than the mouse's
     /// (kind 8): the switch on, and a Mac whose window list says it takes one. Main thread.
     var pencilAsPen: Bool {
         PenStrokes.penMode(switchOn: Self.pencilPressureOn, connected: connected, hostPencil: hostPencil,
                            generation: PenInput.generation)
     }
 
-    /// One Pencil message to the Mac (kind 29), as `sendInput` sends kind 8: it counts as input for the
+    /// One Pencil message to the Mac (kind 45), as `sendInput` sends kind 8: it counts as input for the
     /// tour's rule and hands this device the pointer; a hover goes as pointer moves do, the newest
     /// only, and everything else at once, after a move or hover still waiting. Main thread.
     func sendPen(_ input: PenInput) {

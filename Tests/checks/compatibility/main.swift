@@ -186,7 +186,7 @@ check(Wire.decode(Clipboard.self, from: Data(#"{"text":"a","image":"AQID","later
 let clipboardMessage = StreamMessage(kind: .clipboard, timestamp: 1, isKeyframe: false, payload: Wire.encode(clip)).serialized()
 check(StreamMessage.parseHeader(clipboardMessage)?.kind == .clipboard && clipboardMessage.count == StreamMessage.headerLength + Wire.encode(clip).count,
       "the clipboard's header parses, then the JSON")
-// Kind 29, the Apple Pencil as a pen (docs/pencil-pressure-plan.md §3), and the window list's
+// Kind 45, the Apple Pencil as a pen (docs/pencil-pressure-plan.md §3), and the window list's
 // `pencil`: additive both ways.
 check(PenInput.phases == ["hover", "down", "move", "up", "cancel", "leave"], "the six phases, in order: \(PenInput.phases)")
 check(Set(PenInput.phases).count == 6, "the six phases are distinct")
@@ -244,10 +244,11 @@ check(!json(list).contains("pencil") && !json(takes).contains("pencil"), "a list
 check(decodedOld != nil && decodedOld?.pencil == nil, "an older host's list decodes, pencil nil")
 check(Wire.decode(WindowList.self, from: Wire.encode(withPencil))?.pencil == 1 && Wire.decode(WindowList.self, from: Wire.encode(withPencil))?.gestures == 1,
       "pencil round-trips, beside gestures")
-check(StreamMessageKind.pen.rawValue == 29 && StreamMessageKind(rawValue: 29) == .pen, "kind 29 is pen")
+check(StreamMessageKind.pen.rawValue == 45 && StreamMessageKind(rawValue: 45) == .pen, "kind 45 is pen")
+check(StreamMessageKind(rawValue: 46) == nil, "46, after the pen's, not this build's")
 let penMessage = StreamMessage(kind: .pen, timestamp: 1, isKeyframe: false, payload: Wire.encode(penMove)).serialized()
 check(StreamMessage.parseHeader(penMessage)?.kind == .pen, "the pen's header parses")
-check(penMessage.first == 29 && penMessage.count == StreamMessage.headerLength + Wire.encode(penMove).count, "kind 29 first, one header, then the JSON")
+check(penMessage.first == 45 && penMessage.count == StreamMessage.headerLength + Wire.encode(penMove).count, "kind 45 first, one header, then the JSON")
 
 // For H4: what cb0ec55's StreamProtocol must read.
 let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : nil

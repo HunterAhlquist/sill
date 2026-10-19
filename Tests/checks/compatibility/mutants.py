@@ -28,7 +28,7 @@ MUTANTS = [
     ("kind 28 as 30", "StreamMessage.swift", "case gesture = 28", "case gesture = 30"),
     ("pencil 1 by default", "Switcher.swift", "clipboard: Int? = nil,\n                pencil: Int? = nil) {", "clipboard: Int? = nil,\n                pencil: Int? = 1) {"),
     ("pencil never stored", "Switcher.swift", "self.pencil = pencil", "self.pencil = nil"),
-    ("kind 29 as 30", "StreamMessage.swift", "case pen = 29", "case pen = 30"),
+    ("kind 45 as 46", "StreamMessage.swift", "case pen = 45", "case pen = 46"),
     ("a phase misspelt", "Pen.swift", 'public static let cancel = "cancel"', 'public static let cancel = "cancelled"'),
     ("leave left out of the phases", "Pen.swift", "public static let phases = [hover, down, move, up, cancel, leave]", "public static let phases = [hover, down, move, up, cancel]"),
     ("33 samples taken", "Pen.swift", "guard given.count <= Self.maxSamples else { return nil }", "guard given.count <= Self.maxSamples + 1 else { return nil }"),

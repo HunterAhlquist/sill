@@ -11,6 +11,11 @@ delivers the events whole to an AppKit app), and which drawing apps take them is
 P1 to P10 are still open (the owner has drawn in Affinity, which found the line back to the
 start, §13). What is left is the owner's: P0's per-app run and P1 to P10. Line numbers are 985a733's.
 
+**Rebased onto main (2026-10-20, branch `pencil-pressure-rebased` in Saffsanity/sill).** The pen
+is kind 45, not 29: main keeps 29 to 31 free (29 the audio plan's, 30 and 31 pull request #66's),
+32 is the clipboard, and open pull requests hold 33 to 44 (#66's, #94's 43, #93's 44). §2 to §9
+say 45; §13's results before the rebase say 29, as they were run.
+
 **The request:** make Apple Pencil pressure and tilt reach Mac apps, where today the Pencil is only
 a mouse.
 
@@ -56,12 +61,12 @@ Kind 8 is special in six places, and Pencil input in a new kind must be treated 
 Each is a default the implementer takes unless the owner says otherwise (§12 lists the ones that
 are the owner's call).
 
-1. **A new kind 29, `pen`, device → host.** Not an optional field on `.pointer`: that would keep
+1. **A new kind 45, `pen`, device → host.** Not an optional field on `.pointer`: that would keep
    one message per sample (240 small TCP messages a second), give hover's end no message of its
    own, and change every pattern match on `.pointer` in the app and its checks. A new kind batches
    a callback's samples in one message and leaves `InputEvent` alone.
 2. **The host advertises it:** `WindowList.pencil` 1, as `gestures` 1 does (`Switcher.swift:55`).
-   A device sends kind 29 only to a host that says so; every other host gets kind 8 as today.
+   A device sends kind 45 only to a host that says so; every other host gets kind 8 as today.
 3. **Raw values on the wire, the Mac's mapping on the Mac.** The device sends pressure as a
    fraction and the Pencil's angles in radians. The host turns them into what macOS wants. A later
    change to the mapping then needs no new device build.
@@ -81,7 +86,7 @@ are the owner's call).
 
 ## 3. Wire
 
-`Sources/StreamProtocol/Pen.swift`, new. `StreamMessageKind.pen = 29`. JSON, strings not enums,
+`Sources/StreamProtocol/Pen.swift`, new. `StreamMessageKind.pen = 45`. JSON, strings not enums,
 every later field optional (HostSettings.swift's rules).
 
 ```swift
@@ -110,14 +115,14 @@ Rules:
   `x`, `y`, `p`, `alt` or `az` is not finite. `p` is clamped to 0…1.
 - `WindowList.pencil: Int?`, nil from every host before. The host sets it to 1 whenever it would
   post input (every host: a synthetic one runs it dry).
-- Kind 26's `seen` counts kinds 8 and 29. Both ends change together, and a 29 only ever goes to a
+- Kind 26's `seen` counts kinds 8 and 45. Both ends change together, and a 45 only ever goes to a
   host that counts it, so the two counts still agree in every mix of builds.
 
 About 60 bytes a sample: 15 KB/s during a stroke.
 
 | Device | Host | What happens |
 |---|---|---|
-| This | This | Kind 29 for the Pencil; pressure and tilt reach the Mac |
+| This | This | Kind 45 for the Pencil; pressure and tilt reach the Mac |
 | This | Older (no `pencil`) | Kind 8 as today. The Settings row says "Update Sill on ‹Mac›" |
 | Older | This | Kind 8 as today |
 | This, switch off | Any | Kind 8 as today |
@@ -168,7 +173,7 @@ Turns pen messages into the list of events to post. Pure, so `Tests/checks/pen` 
 
 ### 4.3 `StreamServer` and `StreamCoordinator`
 
-- `StreamServer.swift:1379`: kind 29 does what kind 8 does there, with `movesPointer` true.
+- `StreamServer.swift:1379`: kind 45 does what kind 8 does there, with `movesPointer` true.
 - The coordinator's `.input` body becomes a helper that both kinds call. A pen message stands in
   as the pointer event it amounts to (down as `.leftDown`, up and cancel as `.leftUp`, the rest as
   `.move`) for `DroppedInput`, `gestureChords.input`, `raiseIfInteracting` and
@@ -176,7 +181,7 @@ Turns pen messages into the list of events to post. Pure, so `Tests/checks/pen` 
   that starts during an activation is replayed in order.
 - With nowhere to land, only an up or cancel whose down was posted still goes, and a "leave".
 
-Nothing new prints unless a device sends kind 29, so the CLI's output stays byte for byte.
+Nothing new prints unless a device sends kind 45, so the CLI's output stays byte for byte.
 
 ## 5. Device
 
@@ -185,7 +190,7 @@ Nothing new prints unless a device sends kind 29, so the CLI's output stays byte
 Decides what goes out, from the touch and hover callbacks. Pure, checked with the host's
 `PenTablet` in `Tests/checks/pen`.
 
-- **The mode is fixed per stroke** at the Pencil's down: pen (kind 29) when the switch is on and
+- **The mode is fixed per stroke** at the Pencil's down: pen (kind 45) when the switch is on and
   the Mac's `pencil` is 1 or more, else mouse (kind 8, today's path). A stroke never changes mode,
   so its up always matches its down.
 - **Samples.** Pressure is `force ÷ maximumPossibleForce`, 0 when the maximum is 0. Angles as
@@ -213,7 +218,7 @@ Decides what goes out, from the touch and hover callbacks. Pure, checked with th
   `pointerNoteSent` with the last sample's position, `flushPendingMove`, and the message. "hover"
   messages share the 8 ms latest-only rule; everything else goes at once.
 - `hostPencil: Int?` from each window list, cleared at tear-down, beside `hostGestures`.
-- `SessionLink.isInput`: first byte 8 or 29.
+- `SessionLink.isInput`: first byte 8 or 45.
 
 ### 5.4 Settings
 
@@ -239,15 +244,15 @@ and double-tap are a small separate change (`UIPencilInteraction`).
 ## 8. Steps, one commit each
 
 0. **The probes (§9 H0, P0).** Stop here if P0 fails for the apps that matter.
-1. **The wire:** `Pen.swift`, kind 29, `WindowList.pencil`; the checks that pin kind numbers (§9
-   H1); `sillclient.py --pen` and `--raw29`.
+1. **The wire:** `Pen.swift`, kind 45, `WindowList.pencil`; the checks that pin kind numbers (§9
+   H1); `sillclient.py --pen` and `--raw45`.
 2. **The host:** `PenTablet`, the injector, the server's count, the coordinator's helper and
    `Held.pen`; `Tests/checks/pen`'s host half.
 3. **The device:** `PenStrokes`, the overlay, `sendPen`, `SessionLink.isInput`, palm rejection;
    the check's device half; the `fence` check's count.
 4. **The switch** and its footnote.
 5. **The documents:** CLAUDE.md (the Current step entry, Layout, Build and run, and the
-   compatibility floor: kinds 0–29, `pencil`, and `seen` counting 8 and 29), `docs/DEVELOPMENT.md`,
+   compatibility floor: kinds 0–28, 32 and 45, `pencil`, and `seen` counting 8 and 45), `docs/DEVELOPMENT.md`,
    `Tests/checks/README.md`, CI's mutants matrix, `site/privacy.html` (lines 73, 108 and 115 list
    what the device sends, the device's switches and what the log holds).
 6. **A review**, then the device tests (§9 P1–P10).
@@ -264,11 +269,11 @@ New Swift files in `iOSClient/` need their four pbxproj entries by hand, in a fr
 | | Gate |
 |---|---|
 | H0 | **AppKit's reading of the events, with nothing posted.** `SillHost --pen-selftest`: build the proximity and point events exactly as the injector would, turn each into an `NSEvent(cgEvent:)`, and print what AppKit reads: `subtype`, `pressure`, `tilt`, `deviceID`, `isEnteringProximity`, `pointingDeviceType`, `capabilityMask`. Pass: pressure 0.25, 0.5 and 1 read back as sent; a Pencil leaning right, left, toward and away reads as tilt +x, −x, −y and +y; the enter and leave pair with the point events by device ID. This fixes §4.1's sign and scale. No event is posted and no permission is needed |
-| H1 | **The kind numbers.** `compatibility`, `protocol`, `menus` and `pointer-control` each say 29 is unknown (`protocol/main.swift:369`, `menus/main.swift:25`, `pointer-control/main.swift:376`, `compatibility/main.swift:166`): 29 is now `pen` and 30 unknown. Three mutants renumber a kind onto 29 (`compatibility` "kind 28 as 29", `menus` "the fetch at 29", `pointer-control` "kind 26 numbered 29") and no longer compile: move each to a free number |
+| H1 | **The kind numbers.** `compatibility`, `protocol` and `pointer-control` name the pen at 45 and 46 unknown (`pointer-control` sweeps every number); 29 to 31 and 33 stay unknown, as main's checks (`clipboard` among them) say, and `menus` is main's. No mutant renumbers a kind onto 45. (Built on 985a733 the pen took 29, the first free number then; §13's results up to the rebase name 29.) |
 | H2 | **`Tests/checks/pen`**, with mutants, in `run-all.sh` and CI's matrix. The wire: each phase's JSON, an older decoder skipping unknown keys, an unknown phase, 33 samples, a non-finite value. The mapping at its edges: force 0, the maximum, a maximum of 0; the Pencil upright, flat, and at each quarter of azimuth. The host's rules: enter before the first point, leave at each of its four causes, a down while down, an up while up, a device leaving mid-stroke. The device's: the mode fixed per stroke, "leave" not sent as the tip lands, palm silence and its 0.5 s. Then random sessions of a Pencil, a finger and a second device against the invariants: every point event lies between an enter and a leave, the button is never left down, every posted down gets one up |
-| H3 | **`fence`** counts kind 29 as input in every mode, and **`key-strokes`**' `DroppedInput` cases gain a pen up with nowhere to land |
+| H3 | **`fence`** counts kind 45 as input in every mode, and **`key-strokes`**' `DroppedInput` cases gain a pen up with nowhere to land |
 | H4 | **The CLI's stdout** against main's, masked and sorted, idle 35 s and with a Desktop client: identical |
-| H5 | **A dry run end to end.** `SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_INPUT_LOG=1 SillHost --synthetic`, and `sillclient.py --pen` sending hover, down, a ramp of moves, up and leave: the log lists "pen enters", the moves with their pressure and tilt, one down and one up, "pen leaves"; then a `--tap` from a second client mid-hover: "pen leaves" before its click. `--pen` and `--raw29` go only to a `--synthetic` host on this Mac, as `--input` does |
+| H5 | **A dry run end to end.** `SILL_TEST_LOOPBACK=1 SILL_TEST_SOFTWARE_ENCODER=1 SILL_TEST_INPUT_LOG=1 SillHost --synthetic`, and `sillclient.py --pen` sending hover, down, a ramp of moves, up and leave: the log lists "pen enters", the moves with their pressure and tilt, one down and one up, "pen leaves"; then a `--tap` from a second client mid-hover: "pen leaves" before its click. `--pen` and `--raw45` go only to a `--synthetic` host on this Mac, as `--input` does |
 | H6 | **Builds:** `swift build -c release`, iOS Debug and Release for the simulator and Debug for a device, only the known warnings; `Tests/checks/run-all.sh`, all |
 
 ### Simulator

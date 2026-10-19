@@ -18,7 +18,7 @@ package struct PenPoint: Equatable, Sendable {
     }
 }
 
-/// An Apple Pencil's messages (kind 29, Pen.swift) as what the Mac posts for them
+/// An Apple Pencil's messages (kind 45, Pen.swift) as what the Mac posts for them
 /// (docs/pencil-pressure-plan.md §4.1): the pen coming into range and leaving it, and each sample as
 /// a move, the left button down or the button up with a tablet pen's pressure and tilt. Pure: it
 /// decides, InputInjector posts (through its pointer path, with a button state of the pen's own).
@@ -206,7 +206,7 @@ package struct PenTablet: Sendable {
         return !(checked.samples ?? []).isEmpty
     }
 
-    /// The same for a kind 29 payload as the host reads it.
+    /// The same for a kind 45 payload as the host reads it.
     package static func movesPointer(payload: Data) -> Bool {
         Wire.decode(PenInput.self, from: payload).map(movesPointer) ?? false
     }

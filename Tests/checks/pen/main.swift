@@ -1,7 +1,7 @@
 import Foundation
 
 // PenTablet (Sources/SillHost/PenTablet.swift) against docs/pencil-pressure-plan.md §4.1: an Apple
-// Pencil's messages (kind 29) as what the Mac posts. Compiled with StreamProtocol's sources as one
+// Pencil's messages (kind 45) as what the Mac posts. Compiled with StreamProtocol's sources as one
 // module (build.sh).
 var failures = 0
 var checks = 0

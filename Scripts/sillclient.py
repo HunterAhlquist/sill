@@ -36,13 +36,13 @@ usage: sillclient.py PORT [seconds] [desktop|none|window:ID] [flags...]
   --raw28=JSON@T     send this literal kind 28 payload T seconds in (split on the last @)
                      --gesture and --raw28 go only to a --synthetic host on this Mac, as input does:
                      it logs the shortcut it would post and posts nothing; any other host posts it
-  --pen=PHASE[,X,Y[,P[,ALT,AZ]]]@T  send an Apple Pencil message (kind 29) T seconds in: hover, down,
+  --pen=PHASE[,X,Y[,P[,ALT,AZ]]]@T  send an Apple Pencil message (kind 45) T seconds in: hover, down,
                      move, up, cancel or leave, with one sample at the frame fraction X,Y (none for
                      leave, and cancel may go without), pressure P (0…1) and the Pencil's altitude
                      and azimuth in radians; e.g. --pen=down,0.3,0.5,0.2@2 --pen=move,0.4,0.5,0.8,1.0,0.5@2.1
-  --raw29=JSON@T     send this literal kind 29 payload T seconds in (split on the last @): several
+  --raw45=JSON@T     send this literal kind 45 payload T seconds in (split on the last @): several
                      samples, a phase --pen does not make
-                     --pen and --raw29 go only to a --synthetic host on this Mac, as input does
+                     --pen and --raw45 go only to a --synthetic host on this Mac, as input does
   --hello=VER[,PROTO] send a hello (kind 23) first, before the select, as a device from 2026-09-25 on does:
                      {"appVersion": VER, "protocol": PROTO, "device": the --device name, else "sillclient"};
                      --hello=none sends {} (a hello with nothing in it). Without it no hello is sent: an
@@ -150,7 +150,7 @@ SET_KEYS = {"maxFPS", "bitrate", "captureScale", "prioritizeSpeed", "virtualDisp
 AWAY_KEYS = {"homeBitrate", "homeCaptureScale", "awayBitrate", "awayCaptureScale", "thisConnectionAway", "awayRunning"}
 EXPECT_KEYS = SET_KEYS | {"persistent", "virtualDisplayAvailable", "linkState", "clipboard"} | AWAY_KEYS
 TIMED = ("set", "raw17", "pick", "fps-after", "stop-ping", "stop-read", "pairing-wanted", "fetch", "press", "raw25", "raw27",
-         "move", "tap", "key", "input", "gesture", "raw28", "copy", "copy-bytes", "raw32", "pen", "raw29")
+         "move", "tap", "key", "input", "gesture", "raw28", "copy", "copy-bytes", "raw32", "pen", "raw45")
 INPUT = ("move", "tap", "key", "input")
 # What --gesture may send: TrackpadGesture's six names (Gesture.swift). Anything else goes with --raw28.
 GESTURES = ("swipeUp", "swipeDown", "swipeLeft", "swipeRight", "pinch", "spread")
@@ -202,7 +202,7 @@ def gesture(text):
     if n not in (3, 4): raise ValueError(f"--gesture: 3 or 4 fingers, not {n}")
     return {"gesture": name, "fingers": n}
 
-# What --pen may send: PenInput's six phases (Pen.swift). Anything else goes with --raw29.
+# What --pen may send: PenInput's six phases (Pen.swift). Anything else goes with --raw45.
 PEN_PHASES = ("hover", "down", "move", "up", "cancel", "leave")
 
 def pen(text):
@@ -568,9 +568,9 @@ try:
             raise ValueError(f"--gesture and --raw28 only go to a --synthetic host on this Mac, which posts no gesture; nothing on port {port} is one.")
     # The Pencil likewise (docs/pencil-pressure-plan.md): a --synthetic host posts nothing; any other
     # host would post its strokes on this Mac.
-    if any(e[2] in ("pen", "raw29") for e in events):
+    if any(e[2] in ("pen", "raw45") for e in events):
         if host not in ("127.0.0.1", "::1", "localhost") or not synthetic_listener(port):
-            raise ValueError(f"--pen and --raw29 only go to a --synthetic host on this Mac, which never posts input; nothing on port {port} is one.")
+            raise ValueError(f"--pen and --raw45 only go to a --synthetic host on this Mac, which never posts input; nothing on port {port} is one.")
 except ValueError as e:
     print(f"sillclient.py: {e}", file=sys.stderr); sys.exit(2)
 show_pointer = "--pointer" in flags
@@ -771,9 +771,9 @@ def fire(e, now):
     elif name == "raw32":
         s.sendall(msg(32, text.encode())); print(f"  sent raw kind 32 {text} at {at}")
     elif name == "pen":
-        s.sendall(msg(29, json.dumps(parsed).encode())); print(f"  sent pen {json.dumps(parsed)} at {at}")
-    elif name == "raw29":
-        s.sendall(msg(29, text.encode())); print(f"  sent raw kind 29 {text} at {at}")
+        s.sendall(msg(45, json.dumps(parsed).encode())); print(f"  sent pen {json.dumps(parsed)} at {at}")
+    elif name == "raw45":
+        s.sendall(msg(45, text.encode())); print(f"  sent raw kind 45 {text} at {at}")
 while time.time() - t0 < dur:
     now = time.time()
     while events and now - t0 >= events[0][0]:

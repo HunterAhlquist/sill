@@ -1,5 +1,5 @@
 #!/bin/bash
-# PenTablet (Sources/SillHost): an Apple Pencil's messages (kind 29) as what the Mac posts for them
+# PenTablet (Sources/SillHost): an Apple Pencil's messages (kind 45) as what the Mac posts for them
 # (docs/pencil-pressure-plan.md §4.1): the pen coming into range before its first point and leaving
 # at each of its causes (the device's leave, a second without a message with the tip up, mouse input
 # from any device, the device leaving, the host's end), the tip as the left button (a down it

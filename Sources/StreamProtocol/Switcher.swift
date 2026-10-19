@@ -61,7 +61,7 @@ public struct WindowList: Codable {
     /// rebases.
     public var clipboard: Int?
 
-    /// Whether this host takes an Apple Pencil as a pen (kind 29, Pen.swift): 1 is `PenInput`'s six
+    /// Whether this host takes an Apple Pencil as a pen (kind 45, Pen.swift): 1 is `PenInput`'s six
     /// phases, posted with a tablet pen's pressure and tilt. Nil from every host before
     /// 2026-10-13, to which a device sends the Pencil as kind 8, the mouse. A later generation says
     /// 2 and goes only to a host that says so.
