@@ -391,6 +391,8 @@ final class StreamClient: ObservableObject {
     struct CursorShape { let image: UIImage; let hotspot: CGPoint; let size: CGSize }
     var cursorShape: CursorShape? { didSet { onCursorShapeChange?(cursorShape) } }
     var onCursorShapeChange: ((CursorShape?) -> Void)?
+    /// On `queue`: the kind 46 just read, until the kind 14 it comes before.
+    private var pendingCursorKind: CursorKind?
 
     /// What this device measured over the last second: frames, frame age and round trip. The
     /// network queue closes a window every second while connected and publishes it here; nil
@@ -3112,7 +3114,7 @@ final class StreamClient: ObservableObject {
         sessionHost = nil
         refusedListing = nil
         resetHomeMove()
-        queue.async { self.lastParameterSets = nil; self.pendingMove = nil; self.stopMeasuring() }
+        queue.async { self.lastParameterSets = nil; self.pendingMove = nil; self.pendingCursorKind = nil; self.stopMeasuring() }
         firstListDeadline?.cancel()
         firstListDeadline = nil
         session = nil
@@ -3140,6 +3142,7 @@ final class StreamClient: ObservableObject {
         // session's viewport may reach the next connection, which may already be dialling.
         forgetViewport()
         cursorShape = nil
+        presence.cursorIsAppOwn = false
         connected = false
         connectedDirectly = false
         route = nil
@@ -3594,8 +3597,9 @@ final class StreamClient: ObservableObject {
     #if DEBUG
     /// The layout harness (`-SillPointer`, ContentView): the mock's pointer in one of the plan's
     /// states, as the feed and this device's input would leave it: `mac@X,Y` (the Mac has it, over
-    /// the stream), `hidden` (the Mac has it, off the stream), `device@X,Y` (this device's trackpad)
-    /// or `pencil@X,Y` (its Pencil); `pencilShows` is Q2's flip (`-SillPencilPointer 1`). False for
+    /// the stream), `hidden` (the Mac has it, off the stream), `device@X,Y` (this device's trackpad),
+    /// `pencil@X,Y` (its Pencil) or `pen@X,Y` (its Pencil hovering as a pen); `pencilShows` is Q2's
+    /// flip (`-SillPencilPointer 1`). False for
     /// a state it does not know. Main thread.
     func debugSeedPointer(_ state: String, pencilShows: Bool) -> Bool {
         let parts = state.lowercased().split(separator: "@", maxSplits: 1).map(String.init)
@@ -3617,6 +3621,10 @@ final class StreamClient: ObservableObject {
         case ("pencil", let p?):
             _ = pointerFeed.sent(.pointer(p), now: CACurrentMediaTime())
             presence.setOwn(p, from: .pencil)
+        case ("pen", let p?):
+            _ = pointerFeed.sent(.pointer(p), now: CACurrentMediaTime())
+            presence.setOwn(p, from: .penHover)
+            presence.cursorIsAppOwn = true   // over an app's own cursor (a brush outline), where it shows
         default:
             return false
         }
@@ -3799,9 +3807,20 @@ final class StreamClient: ObservableObject {
         case .appList:
             guard let apps = Wire.decode([AppInfo].self, from: data) else { return }
             DispatchQueue.main.async { self.apps = apps }
+        case .cursorKind:
+            // Kept until the kind 14 it comes before, so the shape and whether it is a standard cursor
+            // change together (PointerPresence.cursorIsAppOwn).
+            pendingCursorKind = Wire.decode(CursorKind.self, from: data)
         case .cursorShape:
+            let kind = pendingCursorKind
+            pendingCursorKind = nil
             guard let (hotspot, size, png) = CursorShapeBlob.decode(data), let image = UIImage(data: png) else { return }
-            DispatchQueue.main.async { self.cursorShape = CursorShape(image: image, hotspot: hotspot, size: size) }
+            DispatchQueue.main.async {
+                self.cursorShape = CursorShape(image: image, hotspot: hotspot, size: size)
+                // None before it (a Mac from before kind 46): a standard cursor, as far as the Pencil goes.
+                let appOwn = kind?.standard == false
+                if self.presence.cursorIsAppOwn != appOwn { self.presence.cursorIsAppOwn = appOwn; self.renderPointer() }
+            }
         case .macPointer:
             receivePointer(data)
         case .hostSettings:

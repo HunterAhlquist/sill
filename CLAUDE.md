@@ -28,6 +28,13 @@ and tilt, and is the mouse everywhere else.
   `handlePan` before #80's shared `scroll(gesture, .finger)`). Settings › This iPad: Pencil Pressure
   (`Sill.pencilPressure`, on, an iPad's only, never sent). The stale hover that drew a line back to each
   stroke's start goes nowhere; on main's mouse path alone that is the branch's first commit, 593cc12.
+- The hover cursor (Hunter's db5e2ae, on top of the rebase; the plan's Q1, "The cursor while hovering"
+  and "Only an app's own cursor"): while a Pencil hovers as a pen the device's arrow shows, in the Mac
+  cursor's shape, only over an app's own cursor (a drawing app's brush outline), never over a standard
+  arrow, I-beam or hand, and it hides as the tip lands. Kind 46 `cursorKind` (JSON `CursorKind
+  {standard}`, host → device, just before each kind 14; the first number after the pen's), from the
+  host's `CursorClass` (pure: the cursor's pixels against AppKit's standard cursors, or the window
+  server's 1×–10× images); the device's `PointerPresence.Origin.penHover` and `cursorIsAppOwn`.
 - After the merge (328314f): kind 45; PenStrokes.swift's project IDs A045/F045 (AC01/FC01 are
   HardwareKeyboardPolicy.swift's since #80); the workspace file out; privacy.html's Pencil items between
   `<!-- Pencil` markers (release-checklist part 1 §3 cuts them before the release); sillclient.py's
@@ -6106,7 +6113,7 @@ device keeps working with Macs from the first public build on, or each says why
   the plain-TCP `_sill._tcp` door, which only development builds and the CLI without `--pairing`
   keep; the ALPNs `sill/1` and `sill-pair/1`, which every host offers for good at both doors
   (`RemoteTLS.serverALPNs`: a later generation's `sill/2` only ever goes beside them); the 14-byte
-  header; kinds 0–28, 32 and 45 and their payloads (HEVC with ParameterSets; the JSON of Switcher,
+  header; kinds 0–28, 32, 45 and 46 and their payloads (HEVC with ParameterSets; the JSON of Switcher,
   Input, Viewport, HostSettings, Remote, Compatibility, Pointer, MacMenu, Gesture, Clipboard and
   Pen; 29 to 31 stay free, 29 the audio plan's, 30 and 31 pull request #66's), inside `sill/1` at
   both doors (19 and 20 on their own `sill-pair/1` connection, the next bullet); the ping echo; a
@@ -6141,7 +6148,8 @@ device keeps working with Macs from the first public build on, or each says why
   or more, as the phases `hover`, `down`, `move`, `up`, `cancel` and `leave` with at most 32 samples
   (`PenInput.checked()` is what a host acts on), and a later generation says 2; kind 26's `seen`
   counts every input message the host read on that connection, kinds 8 and 45 (SessionLink's
-  `inputsOnSession` counts the same on the device).
+  `inputsOnSession` counts the same on the device); kind 46 (Viewport.swift's CursorKind, `standard`)
+  goes just before the kind 14 it describes, and a device that gets none takes the cursor as standard.
 - Pairing as 1.0 does it (docs/home-pairing-plan.md §3): the Bonjour TXT keys `r` (the recognition
   tag) and `p` ("1" pairing required, "0" open, no `p` a plain door, any other value read as "1");
   a `sill-pair/1` connection is exactly one kind 19, with no hello (the device gate judges sessions

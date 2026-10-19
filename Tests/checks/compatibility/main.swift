@@ -165,6 +165,11 @@ check(decodedOld != nil && decodedOld?.gestures == nil, "an older host's list de
 check(Wire.decode(WindowList.self, from: Wire.encode(takes))?.gestures == 1, "gestures round-trips")
 check(StreamMessageKind.gesture.rawValue == 28 && StreamMessageKind(rawValue: 28) == .gesture, "kind 28 is gesture")
 check(StreamMessageKind(rawValue: 27) == .fetchMenu && StreamMessageKind(rawValue: 30) == nil, "27 is the menus' fetch, 30 not this build's")
+// Kind 46, CursorKind: whether the cursor of the kind 14 after it is a standard one (Viewport.swift).
+check(StreamMessageKind.cursorKind.rawValue == 46 && StreamMessageKind(rawValue: 46) == .cursorKind, "kind 46 is cursorKind")
+check(String(decoding: Wire.encode(CursorKind(standard: false)), as: UTF8.self) == #"{"standard":false}"#, "an app's own cursor: {\"standard\":false}")
+check(Wire.decode(CursorKind.self, from: Data(#"{"standard":true,"later":1}"#.utf8)) == CursorKind(standard: true), "a later field is skipped")
+check(Wire.decode(CursorKind.self, from: Data("{}".utf8)) == CursorKind(standard: nil), "an empty one decodes, standard nil")
 let gestureMessage = StreamMessage(kind: .gesture, timestamp: 1, isKeyframe: false, payload: Wire.encode(gesture)).serialized()
 check(StreamMessage.parseHeader(gestureMessage)?.kind == .gesture, "the gesture's header parses")
 check(gestureMessage.count == StreamMessage.headerLength + Wire.encode(gesture).count, "one header, then the JSON")
@@ -245,7 +250,7 @@ check(decodedOld != nil && decodedOld?.pencil == nil, "an older host's list deco
 check(Wire.decode(WindowList.self, from: Wire.encode(withPencil))?.pencil == 1 && Wire.decode(WindowList.self, from: Wire.encode(withPencil))?.gestures == 1,
       "pencil round-trips, beside gestures")
 check(StreamMessageKind.pen.rawValue == 45 && StreamMessageKind(rawValue: 45) == .pen, "kind 45 is pen")
-check(StreamMessageKind(rawValue: 46) == nil, "46, after the pen's, not this build's")
+check(StreamMessageKind(rawValue: 47) == nil, "47, after the pen's 45 and the cursor's kind 46, not this build's")
 let penMessage = StreamMessage(kind: .pen, timestamp: 1, isKeyframe: false, payload: Wire.encode(penMove)).serialized()
 check(StreamMessage.parseHeader(penMessage)?.kind == .pen, "the pen's header parses")
 check(penMessage.first == 45 && penMessage.count == StreamMessage.headerLength + Wire.encode(penMove).count, "kind 45 first, one header, then the JSON")

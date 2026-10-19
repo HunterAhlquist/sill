@@ -257,6 +257,27 @@ for (phase, down, up) in [(PenInput.hover, false, false), (PenInput.down, false,
     check(PenTablet.stillGoes(message(phase, sample(0.5, 0.5)), tipDown: false) == up, "nowhere to land, its tip up: \(phase) \(up ? "goes" : "is dropped")")
 }
 
+// MARK: The Mac's cursor: standard, or an app's own (CursorClass, kind 46)
+
+do {
+    let standards: Set<Int> = [11, 22, 33]
+    check(CursorClass.isStandard(fingerprint: 22, standards: standards, bitmapWidths: [32, 64], pointWidth: 32),
+          "a standard cursor's fingerprint (the pointing hand: 1× and 2×): standard")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: standards, bitmapWidths: [68], pointWidth: 68),
+          "Affinity's brush outline (68×68, one 1× image): an app's own")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: standards, bitmapWidths: [25, 50], pointWidth: 25),
+          "another app's tool cursor (25×25, 1× and 2×): an app's own")
+    check(CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [28, 56, 140, 280], pointWidth: 28),
+          "the window server's arrow (1×, 2×, 5×, 10×) with no table to match (the CLI): standard")
+    check(CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [23, 46, 115, 230], pointWidth: 23), "and its I-beam")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [28, 56, 140], pointWidth: 28), "three images, none 10×: an app's own")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [28, 56, 280], pointWidth: 28),
+          "three images, one 10× (not the window server's set of four): an app's own")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [10, 20, 40, 80], pointWidth: 10), "four images, the widest 8×: an app's own")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [28, 56, 140, 280], pointWidth: 0), "no point size: an app's own (shown)")
+    check(!CursorClass.isStandard(fingerprint: 44, standards: [], bitmapWidths: [], pointWidth: 28), "no images: an app's own")
+}
+
 // MARK: The device (PenStrokes)
 
 check(PenStrokes.leaveDelay == 0.1 && PenStrokes.palmLinger == 0.5, "a tenth of a second before a leave; half a second of quiet after the tip lifts")
